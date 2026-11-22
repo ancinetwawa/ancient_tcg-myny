@@ -225,7 +225,7 @@ html, body {
 }
 /* While your hand is highlighted, the hover area grows so it's harder to slip off by accident */
 .my-hand:hover .card::before {
-  inset: -50px -20px -300px -20px; /* top, right, bottom, left */
+  inset: -75px -20px -300px -20px; /* top, right, bottom, left */
 }
 /* Your hand has three looks:
    1. Looking at the board: curved, bottom 20% hidden (above).
