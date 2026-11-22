@@ -166,7 +166,7 @@ test("currencies start from config and change with adjust", () => {
 });
 
 test("currencies can't go below 0 unless allowed", () => {
-  const game = gameWith();
+  const game = gameWith({ currencyCanGoNegative: false });
   const a = game.addPlayer("A");
   assert.equal(game.act(a.id, "adjust", { currency: "rep", delta: -1 }).ok, false);
   assert.equal(a.currency.rep, 0);

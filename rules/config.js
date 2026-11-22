@@ -33,5 +33,5 @@ module.exports = {
   startingCurrency: { coin: 0, funding: 0, rep: 0 },
 
   // Can a currency go below 0?
-  currencyCanGoNegative: false,
+  currencyCanGoNegative: true,
 };
