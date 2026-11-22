@@ -158,16 +158,18 @@ html, body {
 
 /* ---------- End Turn button (bottom right) ---------- */
 /* Two hollow outlines, one inside the other, each with the top-left
-   and bottom-right corners cut off diagonally. The text is the same
-   gray at a lower opacity. The outlines are drawn by ::before (outer)
-   and ::after (inner) below. */
+   and bottom-right corners cut off diagonally and slightly rounded.
+   The text is the same gray at a lower opacity. The outlines are drawn
+   by drawEndTurnFrame() in client.js, which reads the settings below. */
 .end-turn {
   /* ---- Look settings: tweak these ---- */
-  --frame-color: rgba(200, 200, 200, 0.6);  /* outline gray; last number = opacity (0-1) */
-  --text-color: rgba(200, 200, 200, 0.45);  /* same gray, lower opacity */
-  --cut: 16px;    /* how big the diagonal corner cuts are */
-  --thick: 3px;   /* thickness of each outline */
-  --gap: 4px;     /* space between the outer and inner outline */
+  --frame-color: rgba(200, 200, 200, 0.8);  /* outline gray; last number = opacity (0-1) */
+  --text-color: rgba(200, 200, 200, 0.65);  /* same gray, lower opacity */
+  --cut: 16px;          /* how big the diagonal corner cuts are */
+  --round: 0.1;         /* corner rounding: 0 = sharp, 0.1 = slight, 0.5 = very round */
+  --thick: 3px;         /* thickness of each outline */
+  --gap: 4px;           /* space between the outer and inner outline */
+  --inner-shift: 2px;   /* nudges the inner outline right (negative = left) */
 
   position: absolute;
   right: 24px;  /* distance from the right edge */
@@ -184,51 +186,32 @@ html, body {
   transition: color 0.15s;
 }
 
-/* Both outlines share this shape: a cut-corner rectangle with a
-   cut-corner hole in the middle (that's what makes it hollow).
-   0.414 keeps the diagonal edges the same thickness as the straight ones. */
-.end-turn::before,
-.end-turn::after {
-  content: "";
+#end-turn-label { position: relative; } /* keeps the text above the outlines */
+
+/* The drawing that holds both outlines (added by client.js) */
+.end-turn .frame {
   position: absolute;
-  background: var(--frame-color);
-  transition: background 0.15s;
-  pointer-events: none;
-  --t: var(--thick);
-  clip-path: polygon(evenodd,
-    /* outer edge */
-    var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c), var(--c) 0,
-    /* inner edge (the hole) */
-    calc(var(--c) + var(--t) * 0.414) var(--t),
-    calc(100% - var(--t)) var(--t),
-    calc(100% - var(--t)) calc(100% - var(--c) - var(--t) * 0.414),
-    calc(100% - var(--c) - var(--t) * 0.414) calc(100% - var(--t)),
-    var(--t) calc(100% - var(--t)),
-    var(--t) calc(var(--c) + var(--t) * 0.414),
-    calc(var(--c) + var(--t) * 0.414) var(--t));
-}
-
-/* Outer outline: the full size of the button */
-.end-turn::before {
   inset: 0;
-  --c: var(--cut);
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
 }
-
-/* Inner outline: shrunk inward by the outer thickness + gap, with a
-   slightly smaller cut so its diagonals stay parallel to the outer ones */
-.end-turn::after {
-  inset: calc(var(--thick) + var(--gap));
-  --c: calc(var(--cut) - (var(--thick) + var(--gap)) * 0.586);
+.end-turn .frame path {
+  fill: none;
+  stroke: var(--frame-color);
+  stroke-width: var(--thick);
+  transition: stroke 0.15s;
 }
 
 /* Brighter on hover, brighter still while clicking */
 .end-turn:hover {
-  --frame-color: rgba(220, 220, 220, 0.8);
-  --text-color: rgba(220, 220, 220, 0.65);
+  --frame-color: rgba(220, 220, 220, 0.9);
+  --text-color: rgba(220, 220, 220, 0.8);
 }
 .end-turn:active {
-  --frame-color: rgba(235, 235, 235, 0.95);
-  --text-color: rgba(235, 235, 235, 0.8);
+  --frame-color: rgba(240, 240, 240, 1);
+  --text-color: rgba(240, 240, 240, 0.95);
 }
 
 /* ---------- Players ---------- */

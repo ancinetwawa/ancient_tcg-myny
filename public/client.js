@@ -106,7 +106,7 @@ function render(view) {
 
   // Our name, the End Turn button, and the deck
   $("you-label").textContent = you.name;
-  $("end-turn").textContent = `End Turn ${you.turn}`;
+  $("end-turn-label").textContent = `End Turn ${you.turn}`;
   $("deck-count").textContent = you.deckCount === 0 ? "Deck empty" : `${you.deckCount} cards`;
   $("deck").classList.toggle("empty", you.deckCount === 0);
 
@@ -166,6 +166,84 @@ function fitHand() {
   hand.style.setProperty("--overlap", `${Math.max(overlap, -cardW + 12)}px`); // always show 12px of each card
 }
 window.addEventListener("resize", fitHand);
+
+// ============================================================
+//  END TURN BUTTON OUTLINES
+//  Draws the two cut-corner outlines as an SVG sized to the button.
+//  The look settings (--cut, --round, --thick, --gap, --inner-shift)
+//  are in the .end-turn section of style.css. Redraws whenever the
+//  button changes size (e.g. "End Turn 9" -> "End Turn 10").
+// ============================================================
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+// Turns a list of corner points into a closed path with rounded corners.
+// radius: how far from each corner the rounding starts, in pixels.
+function roundedPath(points, radius) {
+  let d = "";
+  points.forEach((cur, i) => {
+    const prev = points[(i + points.length - 1) % points.length];
+    const next = points[(i + 1) % points.length];
+    // Distance to the neighbouring corners; rounding can't use more than half an edge
+    const lenIn = Math.hypot(cur[0] - prev[0], cur[1] - prev[1]);
+    const lenOut = Math.hypot(next[0] - cur[0], next[1] - cur[1]);
+    const r = Math.min(radius, lenIn / 2, lenOut / 2);
+    // Where the curve starts (on the edge coming in) and ends (on the edge going out)
+    const start = [cur[0] - ((cur[0] - prev[0]) / lenIn) * r, cur[1] - ((cur[1] - prev[1]) / lenIn) * r];
+    const end = [cur[0] + ((next[0] - cur[0]) / lenOut) * r, cur[1] + ((next[1] - cur[1]) / lenOut) * r];
+    d += `${i === 0 ? "M" : "L"}${start} Q${cur} ${end} `;
+  });
+  return d + "Z";
+}
+
+// Corner points of a rectangle with its top-left and bottom-right corners cut.
+// (x0, y0) = top-left, (x1, y1) = bottom-right, cut = size of the diagonal cut.
+function cutCornerPoints(x0, y0, x1, y1, cut) {
+  return [
+    [x0 + cut, y0], [x1, y0],       // top edge (starts after the top-left cut)
+    [x1, y1 - cut], [x1 - cut, y1], // right edge, then the bottom-right cut
+    [x0, y1], [x0, y0 + cut],       // bottom edge, left edge, then the top-left cut
+  ];
+}
+
+function drawEndTurnFrame() {
+  const button = $("end-turn");
+  const css = getComputedStyle(button);
+  const setting = (name) => parseFloat(css.getPropertyValue(name)) || 0;
+  const cut = setting("--cut");
+  const round = setting("--round");
+  const thick = setting("--thick");
+  const gap = setting("--gap");
+  const shift = setting("--inner-shift");
+  const w = button.offsetWidth;  // button width
+  const h = button.offsetHeight; // button height
+
+  // Create the drawing the first time
+  let svg = button.querySelector(".frame");
+  if (!svg) {
+    svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("class", "frame");
+    svg.append(document.createElementNS(SVG_NS, "path"), document.createElementNS(SVG_NS, "path"));
+    button.prepend(svg);
+  }
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  const [outer, inner] = svg.querySelectorAll("path");
+
+  // Lines are drawn along their centre, so pull each outline in by half
+  // its thickness to keep it inside the button. 0.586 keeps the diagonal
+  // cuts parallel when an outline is pulled inward.
+  const half = thick / 2;
+  const outerCut = cut - half * 0.586;
+  const inset = half + thick + gap; // how far in the inner outline sits
+  const innerCut = cut - inset * 0.586;
+  const radius = round * h;         // --round is a fraction of the button's height
+
+  outer.setAttribute("d", roundedPath(cutCornerPoints(half, half, w - half, h - half, outerCut), radius));
+  inner.setAttribute("d", roundedPath(
+    cutCornerPoints(inset + shift, inset, w - inset + shift, h - inset, innerCut),
+    radius * 0.7 // slightly tighter rounding so the inner corners sit evenly inside the outer ones
+  ));
+}
+new ResizeObserver(drawEndTurnFrame).observe($("end-turn"));
 
 // Shows a short message at the top of the screen for 2 seconds.
 let toastTimer; // timer that hides the message
