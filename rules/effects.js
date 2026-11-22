@@ -27,7 +27,10 @@ module.exports = {
   onDraw(ctx) {},
 
   // Runs when a player ends their turn, before the turn number goes up.
-  onTurnEnd(ctx) {},
+  onTurnEnd(ctx) {
+    // Income: add your Funding to your Coin when you end your turn
+    ctx.player.currency.coin += ctx.player.currency.funding;
+  },
 
   // Runs after the turn number goes up.
   onTurnStart(ctx) {
