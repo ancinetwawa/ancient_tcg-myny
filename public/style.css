@@ -195,6 +195,7 @@ html, body {
   rotate: var(--rot, 0deg);
   transition: translate 0.15s, rotate 0.15s, scale 0.15s;
 }
+.hand .card.placing { transition: none; } /* a newly added card appears in place without sliding */
 
 /* YOUR HAND: fixed to the bottom of the screen; doesn't scroll or zoom */
 .my-hand {

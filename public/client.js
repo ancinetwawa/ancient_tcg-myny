@@ -73,6 +73,9 @@ function connect() {
     firstRender = true;
     tableLayout = null;
     seenCardUids = new Set();
+    $("hand").innerHTML = "";
+    for (const board of otherBoards.values()) board.remove();
+    otherBoards.clear();
     $("table").classList.add("hidden");
     $("welcome").classList.remove("hidden");
     $("join-error").textContent = "The game restarted. Enter your name to rejoin.";
@@ -113,34 +116,27 @@ function render(view) {
   $("deck-count").textContent = you.deckCount === 0 ? "Deck empty" : `${you.deckCount} cards`;
   $("deck").classList.toggle("empty", you.deckCount === 0);
 
-  // Our hand: rebuild one white card element per card
+  // Our hand: update it in place. Cards already showing are kept as they
+  // are (so they don't jump or re-animate); only new cards are added and
+  // cards that left the hand are removed.
   const hand = $("hand");
-  hand.innerHTML = "";
-  for (const card of you.hand) {
-    const el = document.createElement("div");
-    el.className = "card";
-    if (!firstRender && !seenCardUids.has(card.uid)) el.classList.add("new"); // slide-in animation
+  const shown = new Map([...hand.children].map((el) => [el.dataset.uid, el])); // uid -> card element on screen
+  you.hand.forEach((card, i) => {
+    let el = shown.get(String(card.uid));
+    if (!el) {
+      el = makeCardElement(card);
+      if (!firstRender && !seenCardUids.has(card.uid)) el.classList.add("new"); // slide-in animation
+    }
     seenCardUids.add(card.uid);
-    // Card name and text (empty for blank cards)
-    if (card.name) {
-      const name = document.createElement("div");
-      name.className = "card-name";
-      name.textContent = card.name;
-      el.appendChild(name);
-    }
-    if (card.text) {
-      const text = document.createElement("div");
-      text.textContent = card.text;
-      el.appendChild(text);
-    }
-    hand.appendChild(el);
-  }
+    shown.delete(String(card.uid));
+    if (hand.children[i] !== el) hand.insertBefore(el, hand.children[i] || null); // only moves cards whose order changed
+  });
+  for (const gone of shown.values()) gone.remove(); // cards no longer in the hand
   layoutFan(hand);
   firstRender = false;
 
   // Other players' boards
-  renderOtherBoards(others);
-  layoutTable(others.length);
+  layoutTable(renderOtherBoards(others));
 
   // Other players: one chip each at the top of the screen
   const list = $("players");
@@ -192,6 +188,14 @@ function layoutFan(hand) {
     // A tilted card's outer bottom corner dips below its bottom middle
     lowest = Math.max(lowest, drop + (cardW / 2) * Math.abs(Math.sin(rad)));
   });
+  // New cards ("placing") jump straight to their spot instead of sliding out
+  // from the centre; after that they slide normally when the hand changes.
+  for (const card of cards) {
+    if (card.classList.contains("placing")) {
+      void card.offsetWidth; // makes the browser apply the new position now, with no slide
+      card.classList.remove("placing");
+    }
+  }
   // Used by style.css to raise your hand far enough that no card is cut off when you hover it
   hand.style.setProperty("--hand-lift", `${lowest}px`);
 }
@@ -201,43 +205,70 @@ function layoutFan(hand) {
 //  Same layout as yours, but their hand shows face-down cards and
 //  their deck can't be clicked. Rebuilt on every update.
 // ============================================================
+// Builds one card element (used for cards in your hand).
+function makeCardElement(card) {
+  const el = document.createElement("div");
+  el.className = "card placing"; // "placing": appears in its spot without sliding there
+  el.dataset.uid = card.uid;     // lets render() recognise this card on later updates
+  el.addEventListener("animationend", () => el.classList.remove("new")); // so the slide-in only ever plays once
+  // Card name and text (empty for blank cards)
+  if (card.name) {
+    const name = document.createElement("div");
+    name.className = "card-name";
+    name.textContent = card.name;
+    el.appendChild(name);
+  }
+  if (card.text) {
+    const text = document.createElement("div");
+    text.textContent = card.text;
+    el.appendChild(text);
+  }
+  return el;
+}
+
+// Creates or updates every other player's board, in seat order.
+// Boards and cards already on screen are kept and only updated, so
+// nothing re-animates when something unrelated changes.
+// Returns the boards in seat order (used by layoutTable).
+const otherBoards = new Map(); // player id -> their board element
+
 function renderOtherBoards(others) {
-  document.querySelectorAll(".board.other").forEach((el) => el.remove());
-  for (const p of others) {
-    const board = document.createElement("div");
-    board.className = "board other" + (p.online ? "" : " offline");
+  // Remove boards of players who are no longer in the game
+  const stillHere = new Set(others.map((p) => p.id));
+  for (const [id, board] of otherBoards) {
+    if (!stillHere.has(id)) { board.remove(); otherBoards.delete(id); }
+  }
 
-    // Deck
-    const deckArea = document.createElement("div");
-    deckArea.className = "deck-area";
-    const deck = document.createElement("div");
-    deck.className = "deck" + (p.deckCount === 0 ? " empty" : "");
-    const stack = document.createElement("span");
-    stack.className = "deck-stack";
-    const count = document.createElement("span");
-    count.className = "deck-count";
-    count.textContent = p.deckCount === 0 ? "Deck empty" : `${p.deckCount} cards`;
-    deck.append(stack, count);
-    deckArea.appendChild(deck);
-
-    // Hand: one face-down card per card they hold
-    const hand = document.createElement("div");
-    hand.className = "hand";
-    for (let i = 0; i < p.handCount; i++) {
-      const back = document.createElement("div");
-      back.className = "card back";
-      hand.appendChild(back);
+  return others.map((p) => {
+    let board = otherBoards.get(p.id);
+    if (!board) {
+      // First time we see this player: build their board
+      board = document.createElement("div");
+      board.innerHTML = `
+        <div class="deck-area"><div class="deck"><span class="deck-stack"></span><span class="deck-count"></span></div></div>
+        <div class="hand"></div>
+        <div class="board-name"></div>`;
+      $("world").appendChild(board);
+      otherBoards.set(p.id, board);
     }
 
-    // Name and turn
-    const label = document.createElement("div");
-    label.className = "board-name";
-    label.textContent = `${p.name} · Turn ${p.turn}`;
+    // Update what may have changed
+    board.className = "board other" + (p.online ? "" : " offline");
+    board.querySelector(".deck").classList.toggle("empty", p.deckCount === 0);
+    board.querySelector(".deck-count").textContent = p.deckCount === 0 ? "Deck empty" : `${p.deckCount} cards`;
+    board.querySelector(".board-name").textContent = `${p.name} · Turn ${p.turn}`;
 
-    board.append(deckArea, hand, label);
-    $("world").appendChild(board);
+    // Hand: one face-down card per card they hold; add or remove only the difference
+    const hand = board.querySelector(".hand");
+    while (hand.children.length < p.handCount) {
+      const back = document.createElement("div");
+      back.className = "card back placing";
+      hand.appendChild(back);
+    }
+    while (hand.children.length > p.handCount) hand.lastChild.remove();
     layoutFan(hand);
-  }
+    return board;
+  });
 }
 
 // ============================================================
@@ -282,11 +313,12 @@ function seatPositions(numOthers, W, H) {
 }
 
 // Places every board, works out the table's total size, then applies zoom.
-function layoutTable(numOthers) {
+function layoutTable(others) {
+  const numOthers = others.length;
   const css = getComputedStyle(document.documentElement);
   const W = parseFloat(css.getPropertyValue("--board-w"));
   const H = parseFloat(css.getPropertyValue("--board-h"));
-  const boards = [$("my-board"), ...document.querySelectorAll(".board.other")];
+  const boards = [$("my-board"), ...others];
   const seats = [{ x: 0, y: 0, rot: 0 }, ...seatPositions(numOthers, W, H)];
 
   // Bounding box of all boards (a board turned 90 degrees is H wide and W tall)
