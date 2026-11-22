@@ -223,6 +223,10 @@ html, body {
   inset: -10px -10px -300px -10px; /* top, right, bottom, left: how far it reaches past the card */
   z-index: -1;
 }
+/* While your hand is highlighted, the hover area grows so it's harder to slip off by accident */
+.my-hand:hover .card::before {
+  inset: -50px -20px -300px -20px; /* top, right, bottom, left */
+}
 /* Your hand has three looks:
    1. Looking at the board: curved, bottom 20% hidden (above).
    2. Mouse over your hand: slides fully up and grows 5%, keeping its curve.
