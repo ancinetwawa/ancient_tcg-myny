@@ -8,8 +8,26 @@
 /* ---------- Main settings: change these first ---------- */
 :root {
   --table: #2e2e30; /* table background color (dark gray) */
-  --card-w: 100px;  /* card width */
-  --card-h: 140px;  /* card height */
+
+  /* Card width scales with the window.
+     clamp(SMALLEST, PREFERRED, LARGEST): never under 70px or over 170px;
+     in between it's 7.8% of the window width or 13% of its height,
+     whichever is smaller (so short, wide windows don't get giant cards).
+     About 100px on a typical 1280x760 laptop window. */
+  --card-w: clamp(70px, min(7.8vw, 13vh), 170px);
+  --card-h: calc(var(--card-w) * 1.4); /* height keeps the card's shape (1.4x width) */
+
+  /* End Turn button text size; the whole button grows with it. */
+  --button-font: clamp(14px, 1.25vw, 22px);
+
+  /* Deck position: % of the window from the left and from the top. */
+  --deck-x: 15vw;
+  --deck-y: 68vh;
+
+  /* Space the hand must leave free on each side so it never covers
+     the deck (left) or the End Turn button (right). */
+  --clear-left: calc(var(--deck-x) + var(--card-w) / 2 + 24px);
+  --clear-right: calc(var(--button-font) * 8.5 + 48px);
 }
 
 /* The whole page */
@@ -71,14 +89,14 @@ html, body {
   width: var(--card-w);
   height: var(--card-h);
   background: #fff;                          /* blank white card */
-  border-radius: 8px;                        /* rounded corners */
+  border-radius: calc(var(--card-w) * 0.08); /* rounded corners, scale with the card */
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); /* shadow under the card */
   color: #222;
-  font-size: 12px;
-  padding: 8px;
+  font-size: calc(var(--card-w) * 0.12);     /* card text grows with the card (12px on a 100px card) */
+  padding: calc(var(--card-w) * 0.08);       /* space inside the card's edge */
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 0.5em;
   overflow: hidden;
 }
 .card .card-name { font-weight: 600; } /* card name, shown in bold at the top */
@@ -87,8 +105,8 @@ html, body {
 /* Position of the deck on the table */
 .deck-area {
   position: absolute;
-  left: 15%;  /* horizontally centered */
-  top: 68%;   /* a bit above the middle */
+  left: var(--deck-x); /* set in :root at the top: 15% from the left */
+  top: var(--deck-y);  /* set in :root at the top: 68% down */
   transform: translate(-50%, -50%);
 }
 /* The clickable deck */
@@ -145,7 +163,10 @@ html, body {
   transform: translateX(-50%);
   display: flex;
   justify-content: center;
-  max-width: calc(100vw - 480px); /* leaves room for your name and the End Turn button */
+  /* Widest the hand can get: the window width minus room for the deck and
+     End Turn button. The hand is centered, so the bigger of the two
+     clearances is used on both sides. Past this width, cards overlap. */
+  max-width: calc(100vw - 2 * max(var(--clear-left), var(--clear-right)));
 }
 .hand .card { flex-shrink: 0; transition: transform 0.15s; }
 .hand .card + .card { margin-left: var(--overlap, 8px); } /* gap between cards; set by client.js */
@@ -162,10 +183,10 @@ html, body {
   right: 24px;  /* distance from the right edge */
   bottom: 24px; /* distance from the bottom edge */
   font: inherit;
-  font-size: 16px;
+  font-size: var(--button-font); /* set in :root; padding and corners scale with it */
   font-weight: 600;
-  padding: 14px 22px;
-  border-radius: 10px;
+  padding: 0.875em 1.375em;
+  border-radius: 0.625em;
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: rgba(200, 200, 200, 0.22); /* semi-transparent gray */
   color: #f2f2f2;
@@ -232,7 +253,7 @@ html, body {
 
 /* ---------- Phones and narrow screens (640px wide or less) ---------- */
 @media (max-width: 640px) {
-  :root { --card-w: 70px; --card-h: 98px; }                 /* smaller cards */
+  :root { --card-w: 70px; --deck-y: 58vh; }                 /* fixed small cards; deck a bit higher so it clears the hand */
   .hand { max-width: calc(100vw - 32px); bottom: 90px; }    /* hand sits above the button */
   .you-label { top: auto; bottom: 32px; }
 }
