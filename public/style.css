@@ -209,7 +209,20 @@ html, body {
   pointer-events: none;  /* only the cards themselves react to the mouse */
   z-index: 2;
 }
-.my-hand .card { pointer-events: auto; }
+.my-hand .card {
+  pointer-events: auto;
+  overflow: visible; /* lets the invisible hover area below reach outside the card */
+}
+/* Invisible hover area around each of your cards, so you don't have to be
+   exactly on a card, and reaching down past the bottom of the screen so the
+   gap under the cards counts too. It sits behind the cards, so when you're
+   right over a card, that card still wins. */
+.my-hand .card::before {
+  content: "";
+  position: absolute;
+  inset: -10px -10px -300px -10px; /* top, right, bottom, left: how far it reaches past the card */
+  z-index: -1;
+}
 /* Your hand has three looks:
    1. Looking at the board: curved, bottom 20% hidden (above).
    2. Mouse over your hand: slides fully up and grows 5%, keeping its curve.
