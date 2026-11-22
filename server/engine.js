@@ -48,18 +48,31 @@ class Game {
   // Adds the game and the effect functions (like ctx.draw) to { player, card }.
   makeCtx(ctx) {
     const self = ctx.player; // the player this is happening to ("self" in draw)
-    return {
+    const out = {
       game: this,
       ...ctx,
       // draw(player, amount): player = 1-4 (player number) or "self"
       draw: (who, amount) => this.draw(who, amount, self),
     };
+    // One increment function per currency in config.startingCurrency:
+    // incrementCoin(player, amount), incrementFunding(...), incrementRep(...)
+    for (const currency of Object.keys(this.rules.config.startingCurrency)) {
+      const name = "increment" + currency[0].toUpperCase() + currency.slice(1);
+      out[name] = (who, amount) => this.increment(who, currency, amount, self);
+    }
+    return out;
   }
 
   // Runs a hook from rules/effects.js (e.g. "onDraw") if it exists.
   // ctx: info passed to the hook ({ player, card }); see makeCtx.
   hook(name, ctx) {
     const fn = this.rules.effects[name];
+    return typeof fn === "function" ? fn(this.makeCtx(ctx)) : undefined;
+  }
+
+  // Runs a card's own hook from its file in /cards (e.g. card.onPlay) if it has one.
+  cardHook(name, ctx) {
+    const fn = ctx.card && ctx.card[name];
     return typeof fn === "function" ? fn(this.makeCtx(ctx)) : undefined;
   }
 
@@ -75,6 +88,21 @@ class Game {
     if (String(who).toLowerCase() === "self") return self || null;
     const number = Number(who);
     return [...this.players.values()].find((p) => p.number === number) || null;
+  }
+
+  // increment(player, currency, amount): changes that player's currency by
+  // `amount` (negative takes some away). If currencyCanGoNegative is false
+  // it stops at 0. Returns the new amount, or null if there's no such player
+  // or currency. Rules use it as ctx.incrementCoin(player, amount) etc.
+  increment(who, currency, amount, self) {
+    const player = this.findPlayer(who, self);
+    if (!player || !(currency in player.currency)) return null;
+    const change = Number(amount);
+    if (!Number.isFinite(change)) return null;
+    let next = player.currency[currency] + change;
+    if (next < 0 && !this.rules.config.currencyCanGoNegative) next = 0;
+    player.currency[currency] = next;
+    return next;
   }
 
   // draw(player, amount): that player draws `amount` cards from their deck.
@@ -145,6 +173,7 @@ class Game {
     if (!card) return null;
     player.hand.push(card);
     this.hook("onDraw", { player, card });
+    this.cardHook("onDraw", { player, card }); // the card's own onDraw
     return card;
   }
 
@@ -198,7 +227,8 @@ class Game {
       if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, error: "Couldn't tell where to play that" };
       const card = player.hand[index];
       // Let rules/effects.js veto the play
-      if (this.hook("onBeforePlay", { player, card }) === "block") {
+      if (this.hook("onBeforePlay", { player, card }) === "block" ||
+          this.cardHook("onBeforePlay", { player, card }) === "block") {
         return { ok: false, error: "You can't play that card right now" };
       }
       player.hand.splice(index, 1);
@@ -207,7 +237,7 @@ class Game {
       player.field.push(card);
       this.hook("onPlay", { player, card });
       // The card's own effect, if it has one in rules/cards.js
-      if (typeof card.onPlay === "function") card.onPlay(this.makeCtx({ player, card }));
+      this.cardHook("onPlay", { player, card }); // the card's own effect
       return { ok: true };
     }
 
@@ -224,6 +254,7 @@ class Game {
       card.x = Math.max(-5000, Math.min(5000, x));
       card.y = Math.max(-5000, Math.min(5000, y));
       this.hook("onMove", { player, card });
+      this.cardHook("onMove", { player, card });
       return { ok: true };
     }
 

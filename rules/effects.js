@@ -11,6 +11,11 @@
 //    ctx.draw(player, amount) - make a player draw cards.
 //                  player: 1-4 (player number, in join order) or "self"
 //                  (the player this hook is about); amount: how many.
+//    ctx.incrementCoin(player, amount)
+//    ctx.incrementFunding(player, amount)
+//    ctx.incrementRep(player, amount)
+//                - change a player's currency by amount (negative = take away).
+//                  player works the same as in draw.
 //
 //  Return the string "block" from onBeforeDraw, onBeforePlay or
 //  onBeforeMove to stop that draw, play or move.
@@ -29,7 +34,7 @@ module.exports = {
   // Runs when a player ends their turn, before the turn number goes up.
   onTurnEnd(ctx) {
     // Income: add your Funding to your Coin when you end your turn
-    ctx.player.currency.coin += ctx.player.currency.funding;
+    ctx.incrementCoin("self", ctx.player.currency.funding);
   },
 
   // Runs after the turn number goes up.

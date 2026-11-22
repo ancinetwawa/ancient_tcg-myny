@@ -13,7 +13,8 @@ change how the game plays without touching the server code.
 | Folder / file | What it is | Edit it? |
 |---|---|---|
 | `rules/config.js` | Deck contents, starting hand, draw limits, hand limit | **Yes**: this is where you tinker |
-| `rules/cards.js` | Every card in the game (name, text, any stats you add) | **Yes** |
+| `cards/` | **Every card, one file each.** Copy `cards/_template.js` to make one; see `cards/README.md` | **Yes** |
+| `rules/cards.js` | Loads every card from the `cards/` folder | No |
 | `rules/effects.js` | Custom rules that run on join, draw, end of turn, start of turn | **Yes** |
 | `server/engine.js` | Applies the rules above | Rarely |
 | `server/index.js` | Web server and live updates | Rarely |
@@ -28,13 +29,9 @@ change how the game plays without touching the server code.
 
 **Only one draw per turn:** in `rules/config.js` set `maxDrawsPerTurn: 1`.
 
-**Add a card:** in `rules/cards.js` add
-
-```js
-fireball: { name: "Fireball", text: "Deal 3 damage.", cost: 2 },
-```
-
-then add `{ card: "fireball", count: 4 }` to `startingDeck` in `rules/config.js`.
+**Add a card:** copy `cards/_template.js` to `cards/fireball.js`, fill in its
+name, text and effects, then add `{ card: "fireball", count: 4 }` to
+`startingDeck` in `rules/config.js`. See `cards/README.md`.
 
 **Custom rule:** in `rules/effects.js`, for example, to draw a card
 automatically at the start of every turn:

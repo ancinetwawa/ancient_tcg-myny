@@ -1,33 +1,23 @@
 // ============================================================
-//  CARD LIST
-//  Every card in the game is one entry here, keyed by its id.
-//  Use the id in rules/config.js (startingDeck) to put it in decks.
+//  CARD LIST (loader)
+//  Every card lives in its own file in the /cards folder. This file
+//  just collects them all. You don't need to edit it: to make a card,
+//  copy cards/_template.js (see cards/README.md).
 //
-//  Fields:
-//    name  - shown at the top of the card ("" for a blank card)
-//    text  - shown in the middle of the card
-//    any other fields you add (cost, attack, type...) are sent to
-//    the website with the card and can be used by rules/effects.js
-//    onPlay(ctx) - optional: what the card does when it's played.
-//                  ctx.player is who played it; ctx.card is this card.
-//
-//  Effect functions you can use inside onPlay:
-//    ctx.draw(player, amount)
-//      player: 1, 2, 3 or 4 (player number, in join order) or "self"
-//              (the player who played this card)
-//      amount: how many cards to draw
-//
-//  Example card (put it in a deck in rules/config.js to use it):
-//    insight: {
-//      name: "Insight",
-//      text: "Draw 2 cards.",
-//      onPlay(ctx) { ctx.draw("self", 2); },
-//    },
+//  The card's id is its file name: cards/fireball.js -> "fireball".
+//  Files whose name starts with _ (like the template) are skipped.
 // ============================================================
 
-module.exports = {
-  blank: {
-    name: "",
-    text: "",
-  },
-};
+const fs = require("fs");
+const path = require("path");
+
+const CARDS_DIR = path.join(__dirname, "..", "cards");
+
+const cards = {};
+for (const file of fs.readdirSync(CARDS_DIR).sort()) {
+  if (!file.endsWith(".js") || file.startsWith("_")) continue;
+  const id = file.slice(0, -3); // "fireball.js" -> "fireball"
+  cards[id] = require(path.join(CARDS_DIR, file));
+}
+
+module.exports = cards;

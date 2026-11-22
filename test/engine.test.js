@@ -176,6 +176,107 @@ test("currencies can't go below 0 unless allowed", () => {
   assert.equal(b.currency.rep, -1);
 });
 
+test("incrementCoin / Funding / Rep change a player's currency", () => {
+  const game = gameWith();
+  const a = game.addPlayer("A");
+  const b = game.addPlayer("B");
+  const ctx = game.makeCtx({ player: a });
+  assert.equal(ctx.incrementCoin("self", 3), 3);
+  assert.equal(ctx.incrementFunding(2, 2), 2);
+  assert.equal(ctx.incrementRep("self", -1), -1);
+  assert.deepEqual(a.currency, { coin: 3, funding: 0, rep: -1 });
+  assert.deepEqual(b.currency, { coin: 0, funding: 2, rep: 0 });
+  assert.equal(ctx.incrementCoin(4, 1), null, "no player 4: nothing happens");
+});
+
+test("increment stops at 0 when negatives aren't allowed", () => {
+  const game = gameWith({ currencyCanGoNegative: false });
+  const a = game.addPlayer("A");
+  assert.equal(game.makeCtx({ player: a }).incrementCoin("self", -5), 0);
+});
+
+test("a card's onPlay can use increment functions", () => {
+  const rules = loadRules();
+  const game = new Game({
+    ...rules,
+    effects: {},
+    cards: { ...rules.cards, tax: { name: "Tax", onPlay: (ctx) => { ctx.incrementCoin("self", 3); ctx.incrementRep(2, -1); } } },
+    config: { ...rules.config, startingDeck: [{ card: "tax", count: 5 }] },
+  });
+  const a = game.addPlayer("A");
+  const b = game.addPlayer("B");
+  game.act(a.id, "draw");
+  game.act(a.id, "play", { uid: a.hand[0].uid, x: 0, y: 0 });
+  assert.equal(a.currency.coin, 3);
+  assert.equal(b.currency.rep, -1);
+});
+
+test("cards load from the /cards folder; _template is skipped", () => {
+  const { cards } = loadRules();
+  assert.ok(cards.blank);
+  assert.equal(cards._template, undefined);
+});
+
+test("the template is valid and its hooks do nothing as written", () => {
+  const template = require("../cards/_template.js");
+  const game = gameWith();
+  const a = game.addPlayer("A");
+  const ctx = game.makeCtx({ player: a, card: template });
+  for (const hook of ["onBeforePlay", "onPlay", "onDraw", "onMove"]) template[hook](ctx);
+  assert.equal(a.hand.length, 0);
+});
+
+// A game whose deck is made of one given card, with no rules from effects.js
+function deckOf(card) {
+  const rules = loadRules();
+  return new Game({
+    ...rules, effects: {},
+    cards: { test: card },
+    config: { ...rules.config, startingDeck: [{ card: "test", count: 10 }] },
+  });
+}
+
+test("a card whose onPlay draws 2", () => {
+  const game = deckOf({ name: "Insight", onPlay: (ctx) => ctx.draw("self", 2) });
+  const a = game.addPlayer("A");
+  game.act(a.id, "draw");
+  game.act(a.id, "play", { uid: a.hand[0].uid, x: 0, y: 0 });
+  assert.equal(a.hand.length, 2);
+});
+
+test("a card with a cost: blocked without Coin, otherwise pays 1, gains 3, player 2 loses 1 Rep", () => {
+  const game = deckOf({
+    name: "Tax", cost: 1,
+    onBeforePlay: (ctx) => (ctx.player.currency.coin < ctx.card.cost ? "block" : undefined),
+    onPlay: (ctx) => { ctx.incrementCoin("self", -ctx.card.cost); ctx.incrementCoin("self", 3); ctx.incrementRep(2, -1); },
+  });
+  const a = game.addPlayer("A");
+  const b = game.addPlayer("B");
+  game.act(a.id, "draw");
+  const uid = a.hand[0].uid;
+  assert.equal(game.act(a.id, "play", { uid, x: 0, y: 0 }).ok, false, "0 Coin: can't play");
+  game.act(a.id, "adjust", { currency: "coin", delta: 1 });
+  assert.equal(game.act(a.id, "play", { uid, x: 0, y: 0 }).ok, true);
+  assert.equal(a.currency.coin, 3);
+  assert.equal(b.currency.rep, -1);
+});
+
+test("a card's own onDraw and onMove run", () => {
+  const calls = [];
+  const rules = loadRules();
+  const game = new Game({
+    ...rules, effects: {},
+    cards: { spy: { name: "Spy", onDraw: () => calls.push("draw"), onMove: () => calls.push("move") } },
+    config: { ...rules.config, startingDeck: [{ card: "spy", count: 3 }] },
+  });
+  const a = game.addPlayer("A");
+  game.act(a.id, "draw");
+  const uid = a.hand[0].uid;
+  game.act(a.id, "play", { uid, x: 0, y: 0 });
+  game.act(a.id, "move", { uid, x: 5, y: 5 });
+  assert.deepEqual(calls, ["draw", "move"]);
+});
+
 test("onBeforePlay can block a play", () => {
   const game = gameWith({}, { onBeforePlay: () => "block" });
   const a = game.addPlayer("Ana");
