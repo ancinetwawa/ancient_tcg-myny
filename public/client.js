@@ -299,7 +299,7 @@ function renderOtherBoards(others) {
       // First time we see this player: build their board
       board = document.createElement("div");
       board.innerHTML = `
-        <div class="deck-area"><div class="deck"><span class="deck-stack"></span><span class="deck-count"></span></div></div>
+        <div class="deck-area"><div class="zone zone-above"></div><div class="zone zone-discard">Discard</div><div class="zone zone-exile">Exile</div><div class="deck"><span class="deck-stack"></span><span class="deck-count"></span></div></div>
         <div class="field"></div>
         <div class="hand"></div>
         <div class="board-name"></div>`;

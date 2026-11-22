@@ -34,6 +34,8 @@
           <!-- YOUR BOARD (other players' boards are added by client.js) -->
           <div id="my-board" class="board mine">
             <div class="deck-area">
+              <!-- Zones around the deck: one above it, Discard below it, Exile left of Discard -->
+              <div class="zone zone-above"></div><div class="zone zone-discard">Discard</div><div class="zone zone-exile">Exile</div>
               <button id="deck" class="deck" aria-label="Draw a card">
                 <span class="deck-stack"></span>                   <!-- the stack of white cards -->
                 <span id="deck-count" class="deck-count"></span>   <!-- "60 cards" label -->

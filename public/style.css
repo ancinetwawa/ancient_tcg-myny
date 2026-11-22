@@ -128,7 +128,7 @@ html, body {
 .deck-area {
   position: absolute;
   left: 13%;  /* from the board's left edge */
-  top: 69%;   /* from the board's top edge (keeps the deck the same distance from the bottom as before the play area grew) */
+  top: 57%;   /* from the board's top edge (leaves room for the zones above and below the deck) */
   transform: translate(-50%, -50%);
 }
 /* The deck (clickable on your board only) */
@@ -170,12 +170,45 @@ html, body {
 /* "55 cards" label under the deck */
 .deck-count {
   position: absolute;
-  left: 50%;
-  top: calc(100% + 18px);
-  transform: translateX(-50%);
+  left: calc(100% + 16px); /* to the right of the deck (the Discard zone is below it) */
+  top: 50%;
+  transform: translateY(-50%);
   font-size: 14px;
   color: #bbb;
   white-space: nowrap;
+}
+
+/* ---------- Zones around the deck ---------- */
+/* Outlined spaces a little bigger than a card: one above the deck (no label),
+   Discard below it, and Exile to the left of Discard. Positioned from the deck,
+   so they move with it. */
+.deck-area {
+  --zone-pad: 4px;  /* how much bigger than a card each zone is, on every side */
+  --zone-gap: 10px; /* space between the deck and the zones, and between Discard and Exile */
+  --zone-w: calc(var(--card-w) + 2 * var(--zone-pad));
+  --zone-h: calc(var(--card-h) + 2 * var(--zone-pad));
+}
+.zone {
+  position: absolute;
+  width: var(--zone-w);
+  height: var(--zone-h);
+  left: calc(-1 * var(--zone-pad));            /* lined up with the deck */
+  border: 2px solid rgba(200, 200, 200, 0.45); /* gray outline */
+  background: rgba(0, 0, 0, 0.18);             /* slightly darker than the table */
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(200, 200, 200, 0.6);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+.zone-above   { bottom: calc(100% + var(--zone-gap)); }  /* directly above the deck */
+.zone-discard { top: calc(100% + var(--zone-gap)); }     /* directly below the deck */
+.zone-exile {                                            /* left of Discard */
+  top: calc(100% + var(--zone-gap));
+  left: calc(-1 * var(--zone-pad) - var(--zone-gap) - var(--zone-w));
 }
 
 /* ---------- Hands ---------- */
