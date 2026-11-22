@@ -232,6 +232,17 @@ html, body {
    1. Looking at the board: curved, bottom 20% hidden (above).
    2. Mouse over your hand: slides fully up and grows 5%, keeping its curve.
       --hand-lift (set by client.js) raises it so even the lowest edge card is fully on screen. */
+/* Right after a card drops back into your hand, its neighbours get a hover
+   area 35% smaller (17.5% off each side) until the mouse moves, so the
+   cursor resting where you let go doesn't light one of them up by accident.
+   The card itself ignores the mouse; only the shrunken area counts. */
+.my-hand .card.shrunk { pointer-events: none; }
+.my-hand .card.shrunk::before,
+.my-hand:not(.dragging):hover .card.shrunk::before {
+  pointer-events: auto;
+  inset: 17.5%;
+}
+
 /* Every hand highlight below also checks :not(.dragging), so nothing in your
    hand highlights while you're dragging a card (client.js adds .dragging). */
 .my-hand:not(.dragging):hover {

@@ -633,13 +633,27 @@ function dragEnd(e) {
 
   const cardBottom = e.clientY + (heldCard.offsetHeight * HOLD_SCALE) / 2;
   const handTop = $("hand").getBoundingClientRect().top;
-  if (handTop - cardBottom <= PLAY_DISTANCE) return endHold(); // not far enough: back to the hand
+  if (handTop - cardBottom <= PLAY_DISTANCE) return returnToHand(); // not far enough: back to the hand
 
   // Glide to the middle of the screen, bigger, with Play and Cancel
   holdState = "staged";
   heldCard.classList.add("staged");
   placeHeld(window.innerWidth / 2, window.innerHeight / 2, STAGE_SCALE);
   $("stage-buttons").classList.remove("hidden");
+}
+
+// A dragged card dropped too close to the hand goes back into it. Its
+// neighbours get smaller hover areas (the "shrunk" class) until the mouse
+// next moves, so they don't light up just because the cursor is resting there.
+function returnToHand() {
+  const uid = heldUid;
+  endHold();
+  const back = [...$("hand").children].find((el) => el.dataset.uid === String(uid));
+  const neighbours = [back?.previousElementSibling, back?.nextElementSibling].filter(Boolean);
+  neighbours.forEach((el) => el.classList.add("shrunk"));
+  window.addEventListener("pointermove", () => {
+    neighbours.forEach((el) => el.classList.remove("shrunk")); // any movement: back to normal
+  }, { once: true });
 }
 
 // Moves a card that's already in play to where it was let go.
