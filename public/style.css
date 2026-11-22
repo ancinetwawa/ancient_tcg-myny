@@ -1,38 +1,47 @@
-* { box-sizing: border-box; }
+/* ============================================================
+   WEBSITE LOOK: colors, sizes and positions of everything.
+   Colors are hex codes (#2e2e30) or rgba(red, green, blue, opacity).
+   ============================================================ */
 
+* { box-sizing: border-box; } /* sizes include padding and borders */
+
+/* ---------- Main settings: change these first ---------- */
 :root {
-  --table: #2e2e30;
-  --card-w: 100px;
-  --card-h: 140px;
+  --table: #2e2e30; /* table background color (dark gray) */
+  --card-w: 100px;  /* card width */
+  --card-h: 140px;  /* card height */
 }
 
+/* The whole page */
 html, body {
   margin: 0;
   height: 100%;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
   background: var(--table);
-  color: #eee;
-  overflow: hidden;
+  color: #eee;      /* default text color */
+  overflow: hidden; /* no scrollbars */
 }
 
-.screen { position: fixed; inset: 0; }
-.hidden { display: none !important; }
+.screen { position: fixed; inset: 0; }   /* welcome and table each fill the window */
+.hidden { display: none !important; }    /* added by client.js to hide a screen */
 
-/* ---------- Welcome ---------- */
+/* ---------- Welcome screen ---------- */
 #welcome {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #1f1f21;
+  align-items: center;     /* center vertically */
+  justify-content: center; /* center horizontally */
+  background: #1f1f21;     /* slightly darker than the table */
 }
+/* The column holding the title, name box and Enter button */
 .welcome-box {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  width: min(320px, 90vw);
+  gap: 12px;               /* space between items */
+  width: min(320px, 90vw); /* 320px wide, narrower on small phones */
 }
 .welcome-box h1 { margin: 0 0 12px; font-weight: 600; letter-spacing: 0.04em; text-align: center; }
 .welcome-box label { font-size: 14px; color: #aaa; }
+/* Name text field */
 .welcome-box input {
   font: inherit;
   font-size: 18px;
@@ -42,6 +51,7 @@ html, body {
   background: #fff;
   color: #111;
 }
+/* Enter button */
 .welcome-box button {
   font: inherit;
   padding: 12px;
@@ -53,15 +63,16 @@ html, body {
   cursor: pointer;
 }
 .welcome-box button:hover { background: #fff; }
+/* Red message under the button (e.g. "Please enter a name") */
 .error { color: #ff8a80; min-height: 1.2em; margin: 0; font-size: 14px; }
 
-/* ---------- Cards ---------- */
+/* ---------- Cards (in the hand) ---------- */
 .card {
   width: var(--card-w);
   height: var(--card-h);
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  background: #fff;                          /* blank white card */
+  border-radius: 8px;                        /* rounded corners */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45); /* shadow under the card */
   color: #222;
   font-size: 12px;
   padding: 8px;
@@ -70,15 +81,17 @@ html, body {
   gap: 6px;
   overflow: hidden;
 }
-.card .card-name { font-weight: 600; }
+.card .card-name { font-weight: 600; } /* card name, shown in bold at the top */
 
 /* ---------- Deck ---------- */
+/* Position of the deck on the table */
 .deck-area {
   position: absolute;
-  left: 50%;
-  top: 38%;
+  left: 50%;  /* horizontally centered */
+  top: 38%;   /* a bit above the middle */
   transform: translate(-50%, -50%);
 }
+/* The clickable deck */
 .deck {
   position: relative;
   width: var(--card-w);
@@ -88,6 +101,7 @@ html, body {
   background: none;
   cursor: pointer;
 }
+/* The top card of the deck */
 .deck-stack,
 .deck-stack::before,
 .deck-stack::after {
@@ -97,10 +111,12 @@ html, body {
   border-radius: 8px;
   border: 1px solid #d0d0d0;
 }
+/* The offset gray edges that make it look like a stack of cards */
 .deck-stack { box-shadow: 4px 4px 0 #cfcfcf, 8px 8px 0 #bdbdbd, 10px 12px 14px rgba(0,0,0,0.5); }
 .deck-stack::before, .deck-stack::after { content: ""; }
-.deck:hover .deck-stack { transform: translateY(-3px); }
-.deck:active .deck-stack { transform: translateY(0); }
+.deck:hover .deck-stack { transform: translateY(-3px); } /* lifts slightly on hover */
+.deck:active .deck-stack { transform: translateY(0); }   /* presses down on click */
+/* Empty deck: dashed outline instead of cards */
 .deck.empty { cursor: default; }
 .deck.empty .deck-stack {
   background: transparent;
@@ -109,6 +125,7 @@ html, body {
   transform: none;
 }
 .deck.empty .deck-stack::before, .deck.empty .deck-stack::after { display: none; }
+/* "55 cards" label under the deck */
 .deck-count {
   position: absolute;
   left: 50%;
@@ -120,44 +137,46 @@ html, body {
 }
 
 /* ---------- Hand ---------- */
+/* Row of cards at the bottom center */
 .hand {
   position: absolute;
   left: 50%;
-  bottom: 24px;
+  bottom: 24px;                   /* distance from the bottom edge */
   transform: translateX(-50%);
   display: flex;
   justify-content: center;
-  max-width: calc(100vw - 440px);
+  max-width: calc(100vw - 440px); /* leaves room for your name and the End Turn button */
 }
 .hand .card { flex-shrink: 0; transition: transform 0.15s; }
-.hand .card + .card { margin-left: var(--overlap, 8px); }
-.hand .card:hover { transform: translateY(-14px); z-index: 1; }
-.hand .card.new { animation: draw-in 0.25s ease-out; }
+.hand .card + .card { margin-left: var(--overlap, 8px); } /* gap between cards; set by client.js */
+.hand .card:hover { transform: translateY(-14px); z-index: 1; } /* card pops up on hover */
+.hand .card.new { animation: draw-in 0.25s ease-out; }          /* newly drawn card slides in */
 @keyframes draw-in {
   from { transform: translateY(-120px) scale(0.9); opacity: 0; }
   to { transform: none; opacity: 1; }
 }
 
-/* ---------- End turn ---------- */
+/* ---------- End Turn button (bottom right) ---------- */
 .end-turn {
   position: absolute;
-  right: 24px;
-  bottom: 24px;
+  right: 24px;  /* distance from the right edge */
+  bottom: 24px; /* distance from the bottom edge */
   font: inherit;
   font-size: 16px;
   font-weight: 600;
   padding: 14px 22px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(200, 200, 200, 0.22);
+  background: rgba(200, 200, 200, 0.22); /* semi-transparent gray */
   color: #f2f2f2;
   cursor: pointer;
   backdrop-filter: blur(2px);
 }
-.end-turn:hover { background: rgba(220, 220, 220, 0.32); }
-.end-turn:active { background: rgba(220, 220, 220, 0.42); }
+.end-turn:hover { background: rgba(220, 220, 220, 0.32); }  /* lighter on hover */
+.end-turn:active { background: rgba(220, 220, 220, 0.42); } /* lighter still when clicked */
 
 /* ---------- Players ---------- */
+/* Your own name, bottom left */
 .you-label {
   position: absolute;
   left: 24px;
@@ -165,6 +184,7 @@ html, body {
   font-size: 15px;
   color: #ccc;
 }
+/* Row of other players along the top */
 .players {
   position: absolute;
   top: 16px;
@@ -174,6 +194,7 @@ html, body {
   gap: 8px;
   max-width: calc(100vw - 32px);
 }
+/* One other player: dot, name, "Turn 1 · 0 in hand" */
 .player-chip {
   background: rgba(0, 0, 0, 0.28);
   border-radius: 8px;
@@ -187,13 +208,13 @@ html, body {
   height: 8px;
   border-radius: 50%;
   margin-right: 6px;
-  background: #4caf50;
+  background: #4caf50; /* green = online */
 }
-.player-chip.offline { opacity: 0.5; }
-.player-chip.offline .dot { background: #777; }
+.player-chip.offline { opacity: 0.5; }               /* faded when offline */
+.player-chip.offline .dot { background: #777; }      /* gray dot when offline */
 .player-chip .meta { color: #999; margin-left: 6px; }
 
-/* ---------- Toast ---------- */
+/* ---------- Pop-up message (e.g. "Your deck is empty") ---------- */
 .toast {
   position: absolute;
   left: 50%;
@@ -203,14 +224,15 @@ html, body {
   padding: 8px 14px;
   border-radius: 8px;
   font-size: 14px;
-  opacity: 0;
+  opacity: 0;              /* hidden until client.js adds "show" */
   transition: opacity 0.2s;
   pointer-events: none;
 }
 .toast.show { opacity: 1; }
 
+/* ---------- Phones and narrow screens (640px wide or less) ---------- */
 @media (max-width: 640px) {
-  :root { --card-w: 70px; --card-h: 98px; }
-  .hand { max-width: calc(100vw - 32px); bottom: 90px; }
+  :root { --card-w: 70px; --card-h: 98px; }                 /* smaller cards */
+  .hand { max-width: calc(100vw - 32px); bottom: 90px; }    /* hand sits above the button */
   .you-label { top: auto; bottom: 32px; }
 }

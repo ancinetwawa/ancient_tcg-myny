@@ -1,39 +1,45 @@
 <!DOCTYPE html>
+<!-- ============================================================
+     WEBSITE LAYOUT: what's on each screen.
+     Looks are in style.css; behavior is in client.js.
+     The id="..." names are how client.js finds each element.
+     ============================================================ -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ancient TCG</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- sizes the page right on phones -->
+  <title>Ancient TCG</title> <!-- text on the browser tab -->
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <!-- Welcome screen -->
+  <!-- WELCOME SCREEN: shown first; asks for a name -->
   <section id="welcome" class="screen">
     <form id="join-form" class="welcome-box" autocomplete="off">
       <h1>Ancient TCG</h1>
       <label for="name-input">Enter your name</label>
       <input id="name-input" type="text" maxlength="20" placeholder="Your name" required autofocus>
       <button type="submit">Enter</button>
-      <p id="join-error" class="error" role="alert"></p>
+      <p id="join-error" class="error" role="alert"></p> <!-- error messages appear here -->
     </form>
   </section>
 
-  <!-- Game table -->
+  <!-- GAME TABLE: shown after joining (starts hidden) -->
   <section id="table" class="screen hidden">
-    <div id="players" class="players"></div>
-    <div id="you-label" class="you-label"></div>
+    <div id="players" class="players"></div>     <!-- other players' chips, top left -->
+    <div id="you-label" class="you-label"></div> <!-- your name, bottom left -->
 
+    <!-- Your deck: click to draw -->
     <div class="deck-area">
       <button id="deck" class="deck" aria-label="Draw a card">
-        <span class="deck-stack"></span>
-        <span id="deck-count" class="deck-count"></span>
+        <span class="deck-stack"></span>                   <!-- the stack of white cards -->
+        <span id="deck-count" class="deck-count"></span>   <!-- "60 cards" label -->
       </button>
     </div>
 
-    <div id="hand" class="hand"></div>
+    <div id="hand" class="hand"></div> <!-- your hand; client.js fills in the cards -->
 
-    <button id="end-turn" class="end-turn">End Turn 1</button>
-    <div id="toast" class="toast" role="status"></div>
+    <button id="end-turn" class="end-turn">End Turn 1</button> <!-- bottom right -->
+    <div id="toast" class="toast" role="status"></div>        <!-- pop-up messages -->
   </section>
 
   <script src="/client.js"></script>
