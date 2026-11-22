@@ -145,7 +145,7 @@ html, body {
   transform: translateX(-50%);
   display: flex;
   justify-content: center;
-  max-width: calc(100vw - 440px); /* leaves room for your name and the End Turn button */
+  max-width: calc(100vw - 480px); /* leaves room for your name and the End Turn button */
 }
 .hand .card { flex-shrink: 0; transition: transform 0.15s; }
 .hand .card + .card { margin-left: var(--overlap, 8px); } /* gap between cards; set by client.js */
