@@ -512,7 +512,7 @@ html, body {
   --bar-text: rgba(200, 200, 200, 0.65);     /* same as the End Turn text */
   --bar-height: 36px;
   position: absolute;
-  top: 200px;   /* from the top of the screen */
+  top: 100px;   /* from the top of the screen */
   left: 20px;   /* from the left edge */
   display: flex;
   flex-direction: column;
