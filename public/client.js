@@ -80,6 +80,8 @@ function connect() {
     $("hand").innerHTML = "";
     $("my-field").innerHTML = "";
     endHold();
+    $("card-preview")?.remove();
+    previewUid = null;
     for (const board of otherBoards.values()) board.remove();
     otherBoards.clear();
     $("table").classList.add("hidden");
@@ -587,15 +589,50 @@ function placeHeld(x, y, scale) {
   heldCard.style.setProperty("--gs", scale);
 }
 
-// 1. Pick up: press on a card in your hand, or on one of your cards on the board.
-// fromBoard: true when it's a card already in play (sets inPlay).
-function pickUp(e, cards, fromBoard) {
+// 1. Press on a card in your hand, or on one of your cards on the board.
+// Nothing is picked up yet: if the mouse moves more than DRAG_START pixels
+// while held down it becomes a drag (pickUp); if you let go before that,
+// it's a click (shows the big preview copy).
+const DRAG_START = 6; // pixels the mouse must move while pressed before a drag begins
+let pressed = null;   // the card pressed on, until it becomes a drag or a click: { card, fromBoard, x, y }
+
+function pressCard(e, cards, fromBoard) {
   const cardEl = e.target.closest(".card");
   if (!cardEl || e.button !== 0 || holdState) return;
   const card = cards.find((c) => String(c.uid) === cardEl.dataset.uid);
   if (!card) return;
   e.preventDefault();
+  pressed = { card, fromBoard, x: e.clientX, y: e.clientY };
+  window.addEventListener("pointermove", pressMove);
+  window.addEventListener("pointerup", pressUp, { once: true });
+}
 
+// Mouse moved while pressed: far enough -> start dragging
+function pressMove(e) {
+  if (!pressed || Math.hypot(e.clientX - pressed.x, e.clientY - pressed.y) < DRAG_START) return;
+  window.removeEventListener("pointermove", pressMove);
+  const { card, fromBoard } = pressed;
+  pressed = null;
+  pickUp(e, card, fromBoard);
+}
+
+// Let go: still a press (never moved far) -> click; otherwise it was a drag
+function pressUp(e) {
+  window.removeEventListener("pointermove", pressMove);
+  if (pressed) {
+    const { card } = pressed;
+    pressed = null;
+    return togglePreview(card);
+  }
+  dragEnd(e);
+}
+
+$("hand").addEventListener("pointerdown", (e) => pressCard(e, lastView.you.hand, false));
+$("my-field").addEventListener("pointerdown", (e) => pressCard(e, lastView.you.field, true));
+
+// Pick up: the card leaves your hand (or board), grows, and follows the cursor.
+// fromBoard: true when it's a card already in play (sets inPlay).
+function pickUp(e, card, fromBoard) {
   inPlay = fromBoard;
   heldUid = card.uid;
   heldCard = makeCardElement(card);
@@ -609,10 +646,7 @@ function pickUp(e, cards, fromBoard) {
   renderField($("my-field"), lastView.you.field, inPlay ? heldUid : null); // ...or off the board while held
 
   window.addEventListener("pointermove", dragMove);
-  window.addEventListener("pointerup", dragEnd, { once: true });
 }
-$("hand").addEventListener("pointerdown", (e) => pickUp(e, lastView.you.hand, false));
-$("my-field").addEventListener("pointerdown", (e) => pickUp(e, lastView.you.field, true));
 
 // The card follows the cursor
 function dragMove(e) {
@@ -720,6 +754,36 @@ function endHold() {
     renderField($("my-field"), lastView.you.field);
   }
 }
+
+// ============================================================
+//  CARD PREVIEW: click a card to see a copy twice the size in the
+//  upper-left corner. Click it again to close; click another card to
+//  swap. Works on your hand, your played cards, and other players'
+//  played cards.
+// ============================================================
+let previewUid = null; // uid of the card being previewed, or null
+
+function togglePreview(card) {
+  $("card-preview")?.remove();
+  if (previewUid === card.uid) {   // same card clicked again: just close it
+    previewUid = null;
+    return;
+  }
+  previewUid = card.uid;
+  const copy = makeCardElement(card);
+  copy.classList.remove("placing");
+  copy.id = "card-preview";
+  copy.classList.add("card-preview");
+  document.body.appendChild(copy);
+}
+
+// Other players' played cards: click only (you can't drag them)
+$("world").addEventListener("click", (e) => {
+  const cardEl = e.target.closest(".board.other .field .card");
+  if (!cardEl || !lastView) return;
+  const card = lastView.others.flatMap((p) => p.field).find((c) => String(c.uid) === cardEl.dataset.uid);
+  if (card) togglePreview(card);
+});
 
 // Shows a short message at the top of the screen for 2 seconds.
 let toastTimer; // timer that hides the message

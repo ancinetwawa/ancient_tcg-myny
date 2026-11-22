@@ -357,6 +357,21 @@ html, body {
   translate: -50% -50%; /* centre the card on its x, y */
 }
 #my-field .card { pointer-events: auto; cursor: grab; user-select: none; } /* your played cards can be picked up and moved */
+.board.other .field .card { pointer-events: auto; cursor: pointer; }     /* other players' played cards can be clicked to preview */
+
+/* Big copy of a clicked card, upper-left corner (below the player chips).
+   Twice the size a card normally shows on screen (85px wide at 100% zoom). */
+.card-preview {
+  --card-w: 170px;
+  --card-h: 238px;
+  position: fixed;
+  left: 16px;
+  top: 64px;
+  font-size: 24px;          /* card text twice as big too */
+  z-index: 5;
+  pointer-events: none;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+}
 
 /* Layer for your played cards: above your hand (z-index 2), so a card moved
    down near the hand shows on top of it and gets clicked first. */
