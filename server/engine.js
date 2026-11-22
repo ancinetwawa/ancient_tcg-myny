@@ -140,6 +140,14 @@ class Game {
     return { ok: false, error: `Unknown action "${type}"` };
   }
 
+  // Every player except playerId, in join order starting just after them
+  // and wrapping around. E.g. join order A,B,C,D: for C this gives D,A,B.
+  seatOrderAfter(playerId) {
+    const all = [...this.players.values()]; // Map keeps join order
+    const i = all.findIndex((p) => p.id === playerId);
+    return [...all.slice(i + 1), ...all.slice(0, i)];
+  }
+
   // ----------------------------------------------------------
   //  What one player's screen is allowed to show.
   //  They see their own hand in full, but only COUNTS for other
@@ -157,9 +165,11 @@ class Game {
         deckCount: me.deck.length,
         hand: me.hand.map((card) => ({ ...card })), // copies of the full cards
       },
-      // Everyone else, with hidden information left out
-      others: [...this.players.values()]
-        .filter((p) => p.id !== me.id)
+      // Everyone else, with hidden information left out. Listed in seat
+      // order going clockwise from this player (join order, starting
+      // with whoever joined after them), so every player sees the same
+      // seating from their own side of the table.
+      others: this.seatOrderAfter(me.id)
         .map((p) => ({
           id: p.id,
           name: p.name,

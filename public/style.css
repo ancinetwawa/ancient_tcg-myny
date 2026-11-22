@@ -10,6 +10,10 @@
   --table: #2e2e30; /* table background color (dark gray) */
   --card-w: 100px;  /* card width */
   --card-h: 140px;  /* card height */
+  --board-w: 1500px; /* width of each player's board (before zoom) */
+  --my-hand-width: 600px; /* widest your hand can spread on screen; more cards overlap more */
+  --board-h: 525px;  /* height of each player's board (before zoom) */
+  /* At 100% zoom everything is drawn at 85% of these sizes; see BASE_SCALE in client.js. */
 }
 
 /* The whole page */
@@ -66,6 +70,37 @@ html, body {
 /* Red message under the button (e.g. "Please enter a name") */
 .error { color: #ff8a80; min-height: 1.2em; margin: 0; font-size: 14px; }
 
+/* ---------- Table: the scrollable, zoomable area ---------- */
+.viewport {
+  position: absolute;
+  inset: 0;
+  overflow: auto;          /* scroll up and sideways to see other boards */
+  display: flex;           /* with margin:auto below, centers the table when it's smaller than the screen */
+  scrollbar-width: thin;
+  scrollbar-color: #555 transparent;
+}
+.world-sizer { position: relative; margin: auto; flex-shrink: 0; } /* size set by client.js */
+.world { position: absolute; left: 0; top: 0; transform-origin: 0 0; } /* scaled by client.js */
+
+/* One player's board. client.js sets its position and rotation. */
+.board {
+  position: absolute;
+  width: var(--board-w);
+  height: var(--board-h);
+  border: 1px solid rgba(255, 255, 255, 0.06); /* faint outline showing each player's area */
+  border-radius: 12px;
+}
+.board.offline { opacity: 0.5; } /* player has left or lost connection */
+/* Name label, bottom left of each board ("Ben · Turn 3" on other boards) */
+.board-name {
+  position: absolute;
+  left: 24px;
+  bottom: 24px;
+  font-size: 15px;
+  color: #ccc;
+  white-space: nowrap;
+}
+
 /* ---------- Cards (in the hand) ---------- */
 .card {
   width: var(--card-w);
@@ -82,17 +117,23 @@ html, body {
   overflow: hidden;
 }
 .card .card-name { font-weight: 600; } /* card name, shown in bold at the top */
+/* Face-down card (other players' hands) */
+.card.back {
+  background: repeating-linear-gradient(45deg, #e6e6e6 0 6px, #d6d6d6 6px 12px);
+  border: 5px solid #fff;
+}
 
 /* ---------- Deck ---------- */
-/* Position of the deck on the table */
+/* Position of the deck on each board (% of the board's width/height) */
 .deck-area {
   position: absolute;
-  left: 13%;  /* horizontally centered */
-  top: 63%;   /* a bit above the middle */
+  left: 13%;  /* from the board's left edge */
+  top: 63%;   /* from the board's top edge */
   transform: translate(-50%, -50%);
 }
-/* The clickable deck */
+/* The deck (clickable on your board only) */
 .deck {
+  display: block;
   position: relative;
   width: var(--card-w);
   height: var(--card-h);
@@ -114,8 +155,9 @@ html, body {
 /* The offset gray edges that make it look like a stack of cards */
 .deck-stack { box-shadow: 4px 4px 0 #cfcfcf, 8px 8px 0 #bdbdbd, 10px 12px 14px rgba(0,0,0,0.5); }
 .deck-stack::before, .deck-stack::after { content: ""; }
-.deck:hover .deck-stack { transform: translateY(-3px); } /* lifts slightly on hover */
-.deck:active .deck-stack { transform: translateY(0); }   /* presses down on click */
+.mine .deck:hover .deck-stack { transform: translateY(-3px); } /* your deck lifts slightly on hover */
+.mine .deck:active .deck-stack { transform: translateY(0); }   /* presses down on click */
+.board:not(.mine) .deck { cursor: default; }                   /* other players' decks aren't clickable */
 /* Empty deck: dashed outline instead of cards */
 .deck.empty { cursor: default; }
 .deck.empty .deck-stack {
@@ -136,20 +178,63 @@ html, body {
   white-space: nowrap;
 }
 
-/* ---------- Hand ---------- */
-/* Row of cards at the bottom center */
+/* ---------- Hands ---------- */
+/* Cards are fanned in a gentle curve. client.js works out each card's
+   spot and sets --x (sideways), --y (drop along the curve) and
+   --rot (tilt); the settings for the curve are in layoutFan(). */
 .hand {
   position: absolute;
-  left: 50%;
-  bottom: 24px;                   /* distance from the bottom edge */
-  transform: translateX(-50%);
-  display: flex;
-  justify-content: center;
-  max-width: calc(100vw - 700px); /* leaves room for your name and the End Turn button */
+  height: var(--card-h);
 }
-.hand .card { flex-shrink: 0; transition: transform 0.15s; }
-.hand .card + .card { margin-left: var(--overlap, 8px); } /* gap between cards; set by client.js */
-.hand .card:hover { transform: translateY(-14px); z-index: 1; } /* card pops up on hover */
+.hand .card {
+  position: absolute;
+  left: calc(50% - var(--card-w) / 2); /* every card starts at the centre... */
+  bottom: 0;
+  transform-origin: 50% 100%;          /* ...and tilts around its bottom middle */
+  translate: var(--x, 0) var(--y, 0);
+  rotate: var(--rot, 0deg);
+  transition: translate 0.15s, rotate 0.15s, scale 0.15s;
+}
+
+/* YOUR HAND: fixed to the bottom of the screen; doesn't scroll or zoom */
+.my-hand {
+  --card-w: 85px;  /* your card size on screen */
+  --card-h: 119px;
+  left: 50%;
+  bottom: 0;
+  width: var(--my-hand-width);
+  margin-left: calc(var(--my-hand-width) / -2); /* centres it */
+  translate: 0 20%;      /* bottom 20% of the cards hidden below the screen edge */
+  transition: translate 0.2s, scale 0.2s;
+  pointer-events: none;  /* only the cards themselves react to the mouse */
+  z-index: 2;
+}
+.my-hand .card { pointer-events: auto; }
+/* Your hand has three looks:
+   1. Looking at the board: curved, bottom 20% hidden (above).
+   2. Mouse over your hand: slides fully up and grows 5%, keeping its curve.
+      --hand-lift (set by client.js) raises it so even the lowest edge card is fully on screen. */
+.my-hand:hover {
+  translate: 0 calc(var(--hand-lift, 0px) * -1.05 - 4px);
+  scale: 1.05;
+  transform-origin: 50% 100%; /* grows upward from the bottom middle */
+}
+/* 3. Mouse over one card: that card lifts and grows a little more */
+.my-hand .card:hover {
+  translate: var(--x, 0) calc(var(--y, 0px) - 24px);
+  scale: 1.12;
+  z-index: 1;
+}
+
+/* OTHER PLAYERS' HANDS: part of their board, so they zoom and scroll with it.
+   20% of each card runs past the board's edge, like yours. */
+.board .hand {
+  left: 400px;   /* space kept free on the left (for the deck and name) */
+  right: 400px;  /* and on the right */
+  bottom: calc(var(--card-h) * -0.2);
+}
+.board.other { overflow: hidden; } /* cuts off the part past the board's edge */
+
 .hand .card.new { animation: draw-in 0.25s ease-out; }          /* newly drawn card slides in */
 @keyframes draw-in {
   from { transform: translateY(-120px) scale(0.9); opacity: 0; }
@@ -215,14 +300,6 @@ html, body {
 }
 
 /* ---------- Players ---------- */
-/* Your own name, bottom left */
-.you-label {
-  position: absolute;
-  left: 24px;
-  bottom: 24px;
-  font-size: 15px;
-  color: #ccc;
-}
 /* Row of other players along the top */
 .players {
   position: absolute;
@@ -231,7 +308,7 @@ html, body {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  max-width: calc(100vw - 32px);
+  max-width: calc(100vw - 200px); /* stops before the zoom control */
 }
 /* One other player: dot, name, "Turn 1 · 0 in hand" */
 .player-chip {
@@ -269,9 +346,28 @@ html, body {
 }
 .toast.show { opacity: 1; }
 
-/* ---------- Phones and narrow screens (640px wide or less) ---------- */
-@media (max-width: 640px) {
-  :root { --card-w: 70px; --card-h: 98px; }                 /* smaller cards */
-  .hand { max-width: calc(100vw - 32px); bottom: 90px; }    /* hand sits above the button */
-  .you-label { top: auto; bottom: 32px; }
+/* ---------- Zoom control (top right) ---------- */
+.zoom {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.28);
+  border-radius: 8px;
 }
+.zoom button {
+  width: 36px;
+  height: 36px;
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  border: none;
+  background: none;
+  color: #ddd;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.zoom button:hover { background: rgba(255, 255, 255, 0.08); }
+.zoom button:disabled { color: #555; cursor: default; background: none; } /* at the zoom limit */
+#zoom-level { min-width: 48px; text-align: center; font-size: 13px; color: #bbb; }

@@ -58,6 +58,15 @@ test("players have separate decks, hands and turns", () => {
   assert.equal(benSees.hand, undefined, "other players' hands stay hidden");
 });
 
+test("other players are listed clockwise starting after you", () => {
+  const game = gameWith();
+  const [a, b, c, d] = ["A", "B", "C", "D"].map((n) => game.addPlayer(n));
+  const names = (p) => game.viewFor(p.id).others.map((o) => o.name).join("");
+  assert.equal(names(a), "BCD");
+  assert.equal(names(c), "DAB");
+  assert.equal(names(d), "ABC");
+});
+
 test("maxDrawsPerTurn limits draws and resets each turn", () => {
   const game = gameWith({ maxDrawsPerTurn: 1 });
   const p = game.addPlayer("Ana");

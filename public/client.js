@@ -20,6 +20,8 @@ let playerId = store.get("playerId"); // our secret id from the server; lets a r
 let events = null;                    // the live-update connection to the server
 let seenCardUids = new Set();         // card uids already shown, so only NEW cards animate in
 let firstRender = true;               // true until the table is drawn once (skip animation then)
+let zoom = 1;                         // current zoom: 1 = 100%
+let tableLayout = null;               // where every board sits (see layoutTable)
 
 // Pre-fill the name box with the name used last time
 $("name-input").value = store.get("playerName") || "";
@@ -69,6 +71,7 @@ function connect() {
     playerId = null;
     store.remove("playerId");
     firstRender = true;
+    tableLayout = null;
     seenCardUids = new Set();
     $("table").classList.add("hidden");
     $("welcome").classList.remove("hidden");
@@ -132,8 +135,12 @@ function render(view) {
     }
     hand.appendChild(el);
   }
-  fitHand();
+  layoutFan(hand);
   firstRender = false;
+
+  // Other players' boards
+  renderOtherBoards(others);
+  layoutTable(others.length);
 
   // Other players: one chip each at the top of the screen
   const list = $("players");
@@ -153,19 +160,216 @@ function render(view) {
   }
 }
 
-// Overlaps the cards in the hand when there are too many to fit side by side.
-// Sets the CSS variable --overlap (gap between cards; negative = overlapping).
-function fitHand() {
-  const hand = $("hand");
-  const cards = hand.children.length; // number of cards in hand
-  if (cards < 2) return hand.style.setProperty("--overlap", "8px");
-  const cardW = hand.firstChild.offsetWidth; // width of one card in pixels
-  const space = parseFloat(getComputedStyle(hand).maxWidth) || window.innerWidth; // room available
-  const needed = cards * cardW + (cards - 1) * 8; // width if laid out with normal 8px gaps
-  const overlap = needed <= space ? 8 : (space - cards * cardW) / (cards - 1);
-  hand.style.setProperty("--overlap", `${Math.max(overlap, -cardW + 12)}px`); // always show 12px of each card
+// ============================================================
+//  HAND FAN: spreads the cards in a gentle curve, like a held hand.
+//  Cards spread out until they fill the hand's width (set in
+//  style.css), then overlap more as more are added.
+// ============================================================
+const FAN_CARD_GAP = -10;    // gap between cards when there's room (pixels); negative = overlap
+const FAN_MAX_TILT = 5;      // most tilt between neighbouring cards (degrees)
+const FAN_TOTAL_TILT = 36;   // most tilt across the whole hand, edge to edge (degrees)
+const FAN_CURVE = 900;       // radius of the curve: smaller = cards at the edges drop lower
+
+function layoutFan(hand) {
+  const cards = [...hand.children];
+  const n = cards.length;
+  if (n === 0) return;
+  const cardW = cards[0].offsetWidth; // width of one card
+  const space = hand.clientWidth;     // width the hand may use
+  // Distance between neighbouring cards: side by side if they fit, else squeezed together
+  const step = n > 1 ? Math.max(6, Math.min(cardW + FAN_CARD_GAP, (space - cardW) / (n - 1))) : 0;
+  const tilt = n > 1 ? Math.min(FAN_MAX_TILT, FAN_TOTAL_TILT / (n - 1)) : 0;
+
+  let lowest = 0; // how far the lowest card corner sits below the hand's bottom edge
+  cards.forEach((card, i) => {
+    const fromMiddle = i - (n - 1) / 2;                                // e.g. -2,-1,0,1,2 for 5 cards
+    const rot = fromMiddle * tilt;                                     // left cards tilt left, right cards right
+    const rad = (rot * Math.PI) / 180;
+    const drop = FAN_CURVE * (1 - Math.cos(rad));                      // edge cards sit a little lower
+    card.style.setProperty("--x", `${fromMiddle * step}px`);
+    card.style.setProperty("--y", `${drop}px`);
+    card.style.setProperty("--rot", `${rot}deg`);
+    // A tilted card's outer bottom corner dips below its bottom middle
+    lowest = Math.max(lowest, drop + (cardW / 2) * Math.abs(Math.sin(rad)));
+  });
+  // Used by style.css to raise your hand far enough that no card is cut off when you hover it
+  hand.style.setProperty("--hand-lift", `${lowest}px`);
 }
-window.addEventListener("resize", fitHand);
+
+// ============================================================
+//  OTHER PLAYERS' BOARDS
+//  Same layout as yours, but their hand shows face-down cards and
+//  their deck can't be clicked. Rebuilt on every update.
+// ============================================================
+function renderOtherBoards(others) {
+  document.querySelectorAll(".board.other").forEach((el) => el.remove());
+  for (const p of others) {
+    const board = document.createElement("div");
+    board.className = "board other" + (p.online ? "" : " offline");
+
+    // Deck
+    const deckArea = document.createElement("div");
+    deckArea.className = "deck-area";
+    const deck = document.createElement("div");
+    deck.className = "deck" + (p.deckCount === 0 ? " empty" : "");
+    const stack = document.createElement("span");
+    stack.className = "deck-stack";
+    const count = document.createElement("span");
+    count.className = "deck-count";
+    count.textContent = p.deckCount === 0 ? "Deck empty" : `${p.deckCount} cards`;
+    deck.append(stack, count);
+    deckArea.appendChild(deck);
+
+    // Hand: one face-down card per card they hold
+    const hand = document.createElement("div");
+    hand.className = "hand";
+    for (let i = 0; i < p.handCount; i++) {
+      const back = document.createElement("div");
+      back.className = "card back";
+      hand.appendChild(back);
+    }
+
+    // Name and turn
+    const label = document.createElement("div");
+    label.className = "board-name";
+    label.textContent = `${p.name} · Turn ${p.turn}`;
+
+    board.append(deckArea, hand, label);
+    $("world").appendChild(board);
+    layoutFan(hand);
+  }
+}
+
+// ============================================================
+//  TABLE LAYOUT: where each board sits around yours.
+//  Positions are in board pixels with YOUR board's centre at (0, 0);
+//  negative x = left, negative y = up. rot = rotation in degrees.
+//  Players are listed clockwise from you (the server sends them in
+//  that order), so seat 1 is the next player after you.
+// ============================================================
+const BOARD_GAP = 40;    // space between boards
+const BASE_SCALE = 0.85; // size of everything at "100%" zoom (0.85 = 15% smaller than full size)
+const MAX_ZOOM = 2;      // furthest zoom in (200%)
+const ZOOM_STEP = 0.1;   // each click of + or - changes zoom by 10%
+
+function seatPositions(numOthers, W, H) {
+  const up = -(H + BOARD_GAP);   // one board-height above yours
+  const left = -(W + BOARD_GAP); // one board-width to your left
+
+  // 2 players: opponent straight across, facing you
+  if (numOthers === 1) return [{ x: 0, y: up, rot: 180 }];
+
+  // 3 players: next player on your left, turned to face the middle; then one across
+  if (numOthers === 2) return [
+    { x: -(W / 2 + BOARD_GAP + H / 2), y: up / 2, rot: 90 },
+    { x: 0, y: up, rot: 180 },
+  ];
+
+  // 4 players: like two 2-player tables side by side.
+  // Next to you (left), across from them, then across from you.
+  const seats = [
+    { x: left, y: 0, rot: 0 },
+    { x: left, y: up, rot: 180 },
+    { x: 0, y: up, rot: 180 },
+  ];
+  // 5+ players: more columns further left, bottom then top
+  for (let k = 3; k < numOthers; k++) {
+    const column = 2 + Math.floor((k - 3) / 2);
+    const top = (k - 3) % 2 === 1;
+    seats.push({ x: column * left, y: top ? up : 0, rot: top ? 180 : 0 });
+  }
+  return seats.slice(0, numOthers);
+}
+
+// Places every board, works out the table's total size, then applies zoom.
+function layoutTable(numOthers) {
+  const css = getComputedStyle(document.documentElement);
+  const W = parseFloat(css.getPropertyValue("--board-w"));
+  const H = parseFloat(css.getPropertyValue("--board-h"));
+  const boards = [$("my-board"), ...document.querySelectorAll(".board.other")];
+  const seats = [{ x: 0, y: 0, rot: 0 }, ...seatPositions(numOthers, W, H)];
+
+  // Bounding box of all boards (a board turned 90 degrees is H wide and W tall)
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const s of seats) {
+    const sideways = s.rot % 180 !== 0;
+    const halfW = (sideways ? H : W) / 2;
+    const halfH = (sideways ? W : H) / 2;
+    minX = Math.min(minX, s.x - halfW); maxX = Math.max(maxX, s.x + halfW);
+    minY = Math.min(minY, s.y - halfH); maxY = Math.max(maxY, s.y + halfH);
+  }
+
+  // Place each board (rotation turns it around its own centre)
+  boards.forEach((board, i) => {
+    const s = seats[i];
+    board.style.left = `${s.x - W / 2 - minX}px`;
+    board.style.top = `${s.y - H / 2 - minY}px`;
+    board.style.transform = s.rot ? `rotate(${s.rot}deg)` : "";
+  });
+
+  const firstLayout = !tableLayout || tableLayout.numOthers !== numOthers;
+  tableLayout = {
+    numOthers,
+    width: maxX - minX,
+    height: maxY - minY,
+    myLeft: -W / 2 - minX,  // your board's left edge within the table
+    myBottom: H / 2 - minY, // your board's bottom edge within the table
+  };
+  applyZoom();
+  if (firstLayout) scrollToMyBoard(); // new table shape: start looking at your board
+}
+
+// ============================================================
+//  ZOOM AND SCROLLING
+// ============================================================
+// Smallest zoom: where the whole table fits on screen (never above 100%).
+function minZoom() {
+  if (!tableLayout) return 1;
+  const view = $("viewport");
+  const fit = Math.min(view.clientWidth / tableLayout.width, view.clientHeight / tableLayout.height);
+  return Math.min(1, fit / BASE_SCALE);
+}
+
+// Scales the table to the current zoom and updates the - 100% + control.
+function applyZoom() {
+  if (!tableLayout) return;
+  zoom = Math.min(MAX_ZOOM, Math.max(minZoom(), zoom));
+  const scale = BASE_SCALE * zoom;
+  const world = $("world");
+  world.style.width = `${tableLayout.width}px`;
+  world.style.height = `${tableLayout.height}px`;
+  world.style.transform = `scale(${scale})`;
+  $("world-sizer").style.width = `${tableLayout.width * scale}px`;   // lets the page scroll
+  $("world-sizer").style.height = `${tableLayout.height * scale}px`; // over the whole zoomed table
+  $("zoom-level").textContent = `${Math.round(zoom * 100)}%`;
+  $("zoom-out").disabled = zoom <= minZoom() + 0.001;
+  $("zoom-in").disabled = zoom >= MAX_ZOOM - 0.001;
+}
+
+// Scrolls so your board's bottom-left corner is at the screen's bottom-left.
+function scrollToMyBoard() {
+  const view = $("viewport");
+  const scale = BASE_SCALE * zoom;
+  view.scrollLeft = tableLayout.myLeft * scale;
+  view.scrollTop = tableLayout.myBottom * scale - view.clientHeight;
+}
+
+// Changes zoom while keeping the middle of the screen in the same place.
+function zoomBy(step) {
+  if (!tableLayout) return;
+  const view = $("viewport");
+  const oldScale = BASE_SCALE * zoom;
+  const centerX = (view.scrollLeft + view.clientWidth / 2) / oldScale;  // table point at screen centre
+  const centerY = (view.scrollTop + view.clientHeight / 2) / oldScale;
+  zoom = Math.round((zoom + step) * 10) / 10; // keep to clean 10% steps
+  applyZoom();
+  const newScale = BASE_SCALE * zoom;
+  view.scrollLeft = centerX * newScale - view.clientWidth / 2;
+  view.scrollTop = centerY * newScale - view.clientHeight / 2;
+}
+$("zoom-in").addEventListener("click", () => zoomBy(ZOOM_STEP));
+$("zoom-out").addEventListener("click", () => zoomBy(-ZOOM_STEP));
+window.addEventListener("resize", applyZoom);
 
 // ============================================================
 //  END TURN BUTTON OUTLINES

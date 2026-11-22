@@ -25,22 +25,41 @@
 
   <!-- GAME TABLE: shown after joining (starts hidden) -->
   <section id="table" class="screen hidden">
-    <div id="players" class="players"></div>     <!-- other players' chips, top left -->
-    <div id="you-label" class="you-label"></div> <!-- your name, bottom left -->
 
-    <!-- Your deck: click to draw -->
-    <div class="deck-area">
-      <button id="deck" class="deck" aria-label="Draw a card">
-        <span class="deck-stack"></span>                   <!-- the stack of white cards -->
-        <span id="deck-count" class="deck-count"></span>   <!-- "60 cards" label -->
-      </button>
+    <!-- The scrollable, zoomable area holding every player's board -->
+    <div id="viewport" class="viewport">
+      <div id="world-sizer" class="world-sizer"> <!-- sized by client.js so scrolling covers the zoomed table -->
+        <div id="world" class="world">           <!-- client.js scales this for zoom and places the boards -->
+
+          <!-- YOUR BOARD (other players' boards are added by client.js) -->
+          <div id="my-board" class="board mine">
+            <div class="deck-area">
+              <button id="deck" class="deck" aria-label="Draw a card">
+                <span class="deck-stack"></span>                   <!-- the stack of white cards -->
+                <span id="deck-count" class="deck-count"></span>   <!-- "60 cards" label -->
+              </button>
+            </div>
+            <div id="you-label" class="board-name"></div>          <!-- your name, bottom left -->
+          </div>
+
+        </div>
+      </div>
     </div>
 
-    <div id="hand" class="hand"></div> <!-- your hand; client.js fills in the cards -->
+    <!-- Things that stay put on screen while the table scrolls -->
+    <div id="hand" class="hand my-hand"></div> <!-- your hand, bottom center; client.js fills in the cards -->
+    <div id="players" class="players"></div> <!-- other players' chips, top left -->
 
-    <!-- End Turn button, bottom right. client.js draws its outlines behind the label. -->
+    <!-- Zoom control, top right -->
+    <div class="zoom">
+      <button id="zoom-out" aria-label="Zoom out">&minus;</button>
+      <span id="zoom-level">100%</span>
+      <button id="zoom-in" aria-label="Zoom in">+</button>
+    </div>
+
+    <!-- End Turn button. client.js draws its outlines behind the label. -->
     <button id="end-turn" class="end-turn"><span id="end-turn-label">End Turn 1</span></button>
-    <div id="toast" class="toast" role="status"></div>        <!-- pop-up messages -->
+    <div id="toast" class="toast" role="status"></div> <!-- pop-up messages -->
   </section>
 
   <script src="/client.js"></script>
