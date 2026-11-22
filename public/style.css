@@ -12,7 +12,7 @@
   --card-h: 140px;  /* card height */
   --board-w: 1500px; /* width of each player's board (before zoom) */
   --my-hand-width: 600px; /* widest your hand can spread on screen; more cards overlap more */
-  --board-h: 525px;  /* height of each player's board (before zoom) */
+  --board-h: 630px;  /* height of each player's board (before zoom) */
   /* At 100% zoom everything is drawn at 85% of these sizes; see BASE_SCALE in client.js. */
 }
 
@@ -128,7 +128,7 @@ html, body {
 .deck-area {
   position: absolute;
   left: 13%;  /* from the board's left edge */
-  top: 63%;   /* from the board's top edge */
+  top: 69%;   /* from the board's top edge (keeps the deck the same distance from the bottom as before the play area grew) */
   transform: translate(-50%, -50%);
 }
 /* The deck (clickable on your board only) */
