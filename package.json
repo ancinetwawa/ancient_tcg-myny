@@ -1,0 +1,14 @@
+{
+  "name": "ancient-tcg",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Online multiplayer trading card game with editable rules",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

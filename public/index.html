@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ancient TCG</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <!-- Welcome screen -->
+  <section id="welcome" class="screen">
+    <form id="join-form" class="welcome-box" autocomplete="off">
+      <h1>Ancient TCG</h1>
+      <label for="name-input">Enter your name</label>
+      <input id="name-input" type="text" maxlength="20" placeholder="Your name" required autofocus>
+      <button type="submit">Enter</button>
+      <p id="join-error" class="error" role="alert"></p>
+    </form>
+  </section>
+
+  <!-- Game table -->
+  <section id="table" class="screen hidden">
+    <div id="players" class="players"></div>
+    <div id="you-label" class="you-label"></div>
+
+    <div class="deck-area">
+      <button id="deck" class="deck" aria-label="Draw a card">
+        <span class="deck-stack"></span>
+        <span id="deck-count" class="deck-count"></span>
+      </button>
+    </div>
+
+    <div id="hand" class="hand"></div>
+
+    <button id="end-turn" class="end-turn">End Turn 1</button>
+    <div id="toast" class="toast" role="status"></div>
+  </section>
+
+  <script src="/client.js"></script>
+</body>
+</html>
