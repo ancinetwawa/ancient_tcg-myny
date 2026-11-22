@@ -166,10 +166,10 @@ html, body {
   --frame-color: rgba(200, 200, 200, 0.8);  /* outline gray; last number = opacity (0-1) */
   --text-color: rgba(200, 200, 200, 0.65);  /* same gray, lower opacity */
   --cut: 16px;          /* how big the diagonal corner cuts are */
-  --round: 0.1;         /* corner rounding: 0 = sharp, 0.1 = slight, 0.5 = very round */
+  --round: 0.1;         /* rounding of the top-right and bottom-left corners: 0 = sharp, 0.1 = slight, 0.5 = very round */
   --thick: 3px;         /* thickness of each outline */
   --gap: 4px;           /* space between the outer and inner outline */
-  --inner-shift: 2px;   /* nudges the inner outline right (negative = left) */
+  --inner-shift: 0px;   /* nudges the inner outline right (negative = left) */
 
   position: absolute;
   right: 24px;  /* distance from the right edge */

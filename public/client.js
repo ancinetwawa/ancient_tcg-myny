@@ -177,10 +177,12 @@ window.addEventListener("resize", fitHand);
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 // Turns a list of corner points into a closed path with rounded corners.
-// radius: how far from each corner the rounding starts, in pixels.
-function roundedPath(points, radius) {
+// radii: one number per corner = how far from that corner the rounding
+// starts, in pixels (0 = sharp corner).
+function roundedPath(points, radii) {
   let d = "";
   points.forEach((cur, i) => {
+    const radius = radii[i];
     const prev = points[(i + points.length - 1) % points.length];
     const next = points[(i + 1) % points.length];
     // Distance to the neighbouring corners; rounding can't use more than half an edge
@@ -197,6 +199,8 @@ function roundedPath(points, radius) {
 
 // Corner points of a rectangle with its top-left and bottom-right corners cut.
 // (x0, y0) = top-left, (x1, y1) = bottom-right, cut = size of the diagonal cut.
+// Order: [0] top-left cut (top end), [1] top-right, [2] bottom-right cut (top end),
+//        [3] bottom-right cut (bottom end), [4] bottom-left, [5] top-left cut (left end)
 function cutCornerPoints(x0, y0, x1, y1, cut) {
   return [
     [x0 + cut, y0], [x1, y0],       // top edge (starts after the top-left cut)
@@ -237,10 +241,14 @@ function drawEndTurnFrame() {
   const innerCut = cut - inset * 0.586;
   const radius = round * h;         // --round is a fraction of the button's height
 
-  outer.setAttribute("d", roundedPath(cutCornerPoints(half, half, w - half, h - half, outerCut), radius));
+  // Only the top-right [1] and bottom-left [4] corners are rounded; the cut corners stay sharp.
+  const outerRadii = [0, radius, 0, 0, radius, 0];
+  const innerRadii = outerRadii.map((r) => r * 0.7); // slightly tighter so inner corners sit evenly inside
+
+  outer.setAttribute("d", roundedPath(cutCornerPoints(half, half, w - half, h - half, outerCut), outerRadii));
   inner.setAttribute("d", roundedPath(
     cutCornerPoints(inset + shift, inset, w - inset + shift, h - inset, innerCut),
-    radius * 0.7 // slightly tighter rounding so the inner corners sit evenly inside the outer ones
+    innerRadii
   ));
 }
 new ResizeObserver(drawEndTurnFrame).observe($("end-turn"));
