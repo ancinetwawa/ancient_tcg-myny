@@ -3,12 +3,15 @@ const test = require("node:test");
 const assert = require("node:assert");
 const { Game, loadRules } = require("../server/engine");
 
+// A game using the real cards and config, but with NO rules from
+// rules/effects.js (only the ones a test passes in). That way these tests
+// check the engine itself and keep passing whatever rules you write.
 function gameWith(configChanges = {}, effects = {}) {
   const rules = loadRules();
   return new Game({
     ...rules,
     config: { ...rules.config, ...configChanges },
-    effects: { ...rules.effects, ...effects },
+    effects,
   });
 }
 
