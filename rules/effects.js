@@ -8,6 +8,10 @@
 //                  ({ uid, id, ...the card's fields from cards.js })
 //    ctx.game    - the whole game (ctx.game.players is a Map)
 //
+//    ctx.draw(player, amount) - make a player draw cards.
+//                  player: 1-4 (player number, in join order) or "self"
+//                  (the player this hook is about); amount: how many.
+//
 //  Return the string "block" from onBeforeDraw, onBeforePlay or
 //  onBeforeMove to stop that draw, play or move.
 // ============================================================
@@ -26,7 +30,9 @@ module.exports = {
   onTurnEnd(ctx) {},
 
   // Runs after the turn number goes up.
-  onTurnStart(ctx) {},
+  onTurnStart(ctx) {
+    ctx.draw("self", 1); // draw 1 card at the start of each turn
+  },
 
   // Runs before a card is played from the hand. Return "block" to cancel it.
   // ctx.card is the card being played.

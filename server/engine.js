@@ -44,11 +44,54 @@ class Game {
     return { uid: this.nextUid++, id: cardId, ...def };
   }
 
+  // Builds the `ctx` object that rules and card effects receive.
+  // Adds the game and the effect functions (like ctx.draw) to { player, card }.
+  makeCtx(ctx) {
+    const self = ctx.player; // the player this is happening to ("self" in draw)
+    return {
+      game: this,
+      ...ctx,
+      // draw(player, amount): player = 1-4 (player number) or "self"
+      draw: (who, amount) => this.draw(who, amount, self),
+    };
+  }
+
   // Runs a hook from rules/effects.js (e.g. "onDraw") if it exists.
-  // ctx: info passed to the hook ({ player, card }); the game is added automatically.
+  // ctx: info passed to the hook ({ player, card }); see makeCtx.
   hook(name, ctx) {
     const fn = this.rules.effects[name];
-    return typeof fn === "function" ? fn({ game: this, ...ctx }) : undefined;
+    return typeof fn === "function" ? fn(this.makeCtx(ctx)) : undefined;
+  }
+
+  // ----------------------------------------------------------
+  //  EFFECT FUNCTIONS: things rules and cards can make happen.
+  //  Use them from rules/effects.js or a card's onPlay as ctx.draw(...).
+  // ----------------------------------------------------------
+
+  // Finds a player from a rules-style reference.
+  // who: a player number (1, 2, 3, 4...) or "self" (whoever the effect belongs to).
+  // self: the player "self" means. Returns the player, or null if there's no match.
+  findPlayer(who, self) {
+    if (String(who).toLowerCase() === "self") return self || null;
+    const number = Number(who);
+    return [...this.players.values()].find((p) => p.number === number) || null;
+  }
+
+  // draw(player, amount): that player draws `amount` cards from their deck.
+  // Stops early if their deck runs out or their hand reaches maxHandSize.
+  // Doesn't count towards maxDrawsPerTurn (that limit is for clicking the deck).
+  // Returns how many cards were actually drawn.
+  draw(who, amount, self) {
+    const player = this.findPlayer(who, self);
+    if (!player) return 0;
+    const { maxHandSize } = this.rules.config;
+    let drawn = 0;
+    for (let i = 0; i < Number(amount); i++) {
+      if (maxHandSize != null && player.hand.length >= maxHandSize) break;
+      if (!this.moveTopCardToHand(player)) break; // deck empty
+      drawn++;
+    }
+    return drawn;
   }
 
   // Adds a new player: builds and shuffles their deck, deals the starting hand.
@@ -63,9 +106,15 @@ class Game {
     }
     if (config.shuffleDeck) shuffle(deck);
 
+    // Player number: the lowest number not already taken (first to join = 1)
+    const taken = new Set([...this.players.values()].map((p) => p.number));
+    let number = 1;
+    while (taken.has(number)) number++;
+
     // Everything the server knows about one player.
     const player = {
       id: id || crypto.randomUUID(), // secret id the player's browser uses to identify itself
+      number,                        // player 1, 2, 3, 4... used by effects like draw(2, 1)
       name,                          // display name from the welcome screen
       turn: config.startingTurn,     // this player's turn number (shown on End Turn button)
       deck,                          // cards left to draw; the LAST item is the top card
@@ -156,6 +205,8 @@ class Game {
       card.y = Math.max(-5000, Math.min(5000, y));
       player.field.push(card);
       this.hook("onPlay", { player, card });
+      // The card's own effect, if it has one in rules/cards.js
+      if (typeof card.onPlay === "function") card.onPlay(this.makeCtx({ player, card }));
       return { ok: true };
     }
 
@@ -198,6 +249,7 @@ class Game {
       // This player's own info
       you: {
         id: me.id,
+        number: me.number,
         name: me.name,
         turn: me.turn,
         deckCount: me.deck.length,
@@ -211,6 +263,7 @@ class Game {
       others: this.seatOrderAfter(me.id)
         .map((p) => ({
           id: p.id,
+          number: p.number,
           name: p.name,
           turn: p.turn,
           deckCount: p.deck.length,

@@ -103,6 +103,55 @@ test("moving a played card changes its position; only your own", () => {
   assert.equal(a.field[0].x, 400);
 });
 
+test("players get numbers in join order; a free number is reused", () => {
+  const game = gameWith();
+  const [a, b, c] = ["A", "B", "C"].map((n) => game.addPlayer(n));
+  assert.deepEqual([a.number, b.number, c.number], [1, 2, 3]);
+  game.removePlayer(b.id);
+  assert.equal(game.addPlayer("D").number, 2);
+  assert.equal(game.viewFor(a.id).you.number, 1);
+});
+
+test("draw(player, amount) with a player number or self", () => {
+  const game = gameWith();
+  const a = game.addPlayer("A");
+  const b = game.addPlayer("B");
+  assert.equal(game.draw(2, 3, a), 3);
+  assert.equal(b.hand.length, 3);
+  assert.equal(game.draw("self", 2, a), 2);
+  assert.equal(a.hand.length, 2);
+  assert.equal(game.draw(4, 1, a), 0, "no player 4: nothing happens");
+});
+
+test("draw stops at an empty deck and at maxHandSize", () => {
+  const small = gameWith({ startingDeck: [{ card: "blank", count: 2 }] });
+  const a = small.addPlayer("A");
+  assert.equal(small.draw("self", 5, a), 2);
+  const capped = gameWith({ maxHandSize: 3 });
+  const b = capped.addPlayer("B");
+  assert.equal(capped.draw("self", 10, b), 3);
+});
+
+test("a card's onPlay can use ctx.draw", () => {
+  const rules = loadRules();
+  const game = new Game({
+    ...rules,
+    cards: { ...rules.cards, insight: { name: "Insight", text: "Draw 2.", onPlay: (ctx) => ctx.draw("self", 2) } },
+    config: { ...rules.config, startingDeck: [{ card: "insight", count: 10 }] },
+  });
+  const a = game.addPlayer("A");
+  game.act(a.id, "draw");
+  game.act(a.id, "play", { uid: a.hand[0].uid, x: 0, y: 0 });
+  assert.equal(a.hand.length, 2, "played 1 card, then drew 2");
+});
+
+test("effects hooks get ctx.draw", () => {
+  const game = gameWith({}, { onTurnStart: (ctx) => ctx.draw("self", 1) });
+  const a = game.addPlayer("A");
+  game.act(a.id, "endTurn");
+  assert.equal(a.hand.length, 1);
+});
+
 test("onBeforePlay can block a play", () => {
   const game = gameWith({}, { onBeforePlay: () => "block" });
   const a = game.addPlayer("Ana");

@@ -122,7 +122,7 @@ function render(view) {
   const { you, others } = view;
 
   // Our name, the End Turn button, and the deck
-  $("you-label").textContent = you.name;
+  $("you-label").textContent = `P${you.number} · ${you.name}`;
   $("end-turn-label").textContent = `End Turn ${you.turn}`;
   $("deck-count").textContent = you.deckCount === 0 ? "Deck empty" : `${you.deckCount} cards`;
   $("deck").classList.toggle("empty", you.deckCount === 0);
@@ -146,7 +146,7 @@ function render(view) {
     const dot = document.createElement("span"); // green = online, gray = offline
     dot.className = "dot";
     const name = document.createElement("strong");
-    name.textContent = p.name;
+    name.textContent = `P${p.number} ${p.name}`;
     const meta = document.createElement("span");
     meta.className = "meta";
     meta.textContent = `Turn ${p.turn} · ${p.handCount} in hand`;
@@ -299,7 +299,7 @@ function renderOtherBoards(others) {
     board.className = "board other" + (p.online ? "" : " offline");
     board.querySelector(".deck").classList.toggle("empty", p.deckCount === 0);
     board.querySelector(".deck-count").textContent = p.deckCount === 0 ? "Deck empty" : `${p.deckCount} cards`;
-    board.querySelector(".board-name").textContent = `${p.name} · Turn ${p.turn}`;
+    board.querySelector(".board-name").textContent = `P${p.number} · ${p.name} · Turn ${p.turn}`;
 
     // Hand: one face-down card per card they hold; add or remove only the difference
     const hand = board.querySelector(".hand");
