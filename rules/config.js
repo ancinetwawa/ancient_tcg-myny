@@ -27,4 +27,11 @@ module.exports = {
   // Most cards a player may hold. Drawing is blocked once reached.
   // null = no limit.
   maxHandSize: null,
+
+  // The game's currencies and how much of each a player starts with.
+  // The website shows Coin, Funding and Rep bars for these three.
+  startingCurrency: { coin: 0, funding: 0, rep: 0 },
+
+  // Can a currency go below 0?
+  currencyCanGoNegative: false,
 };

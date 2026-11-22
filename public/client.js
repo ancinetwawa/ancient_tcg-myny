@@ -113,6 +113,15 @@ async function act(type, details = {}) {
 
 // ---------- Buttons ----------
 $("deck").addEventListener("click", () => act("draw"));
+
+// Currency + / - buttons: each bar says which currency it is (data-currency),
+// each button how much to change it by (data-delta).
+$("currencies").addEventListener("click", (e) => {
+  const button = e.target.closest("button");
+  if (!button) return;
+  const currency = button.closest(".currency").dataset.currency;
+  act("adjust", { currency, delta: Number(button.dataset.delta) });
+});
 $("end-turn").addEventListener("click", () => act("endTurn"));
 
 // ============================================================
@@ -129,6 +138,12 @@ function render(view) {
   $("end-turn-label").textContent = `End Turn ${you.turn}`;
   $("deck-count").textContent = you.deckCount === 0 ? "Deck empty" : `${you.deckCount} cards`;
   $("deck").classList.toggle("empty", you.deckCount === 0);
+
+  // Currency amounts
+  for (const [name, amount] of Object.entries(you.currency)) {
+    const box = $(`${name}-value`);
+    if (box) box.textContent = amount;
+  }
 
   renderHand(you);
 

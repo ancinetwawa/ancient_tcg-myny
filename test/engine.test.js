@@ -155,6 +155,27 @@ test("effects hooks get ctx.draw", () => {
   assert.equal(a.hand.length, 1);
 });
 
+test("currencies start from config and change with adjust", () => {
+  const game = gameWith({ startingCurrency: { coin: 2, funding: 0, rep: 0 } });
+  const a = game.addPlayer("A");
+  assert.deepEqual(game.viewFor(a.id).you.currency, { coin: 2, funding: 0, rep: 0 });
+  assert.equal(game.act(a.id, "adjust", { currency: "coin", delta: 1 }).ok, true);
+  assert.equal(game.act(a.id, "adjust", { currency: "funding", delta: 1 }).ok, true);
+  assert.deepEqual(a.currency, { coin: 3, funding: 1, rep: 0 });
+  assert.equal(game.act(a.id, "adjust", { currency: "gold", delta: 1 }).ok, false, "unknown currency");
+});
+
+test("currencies can't go below 0 unless allowed", () => {
+  const game = gameWith();
+  const a = game.addPlayer("A");
+  assert.equal(game.act(a.id, "adjust", { currency: "rep", delta: -1 }).ok, false);
+  assert.equal(a.currency.rep, 0);
+  const loose = gameWith({ currencyCanGoNegative: true });
+  const b = loose.addPlayer("B");
+  assert.equal(loose.act(b.id, "adjust", { currency: "rep", delta: -1 }).ok, true);
+  assert.equal(b.currency.rep, -1);
+});
+
 test("onBeforePlay can block a play", () => {
   const game = gameWith({}, { onBeforePlay: () => "block" });
   const a = game.addPlayer("Ana");

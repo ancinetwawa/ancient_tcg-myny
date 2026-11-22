@@ -504,6 +504,63 @@ html, body {
 }
 .toast.show { opacity: 1; }
 
+/* ---------- Currency bars (upper left) ---------- */
+/* Three bars (Coin, Funding, Rep) stacked on screen; they don't zoom or scroll.
+   Each: [ name ] 5px [ amount ] 5px [ + over - ] */
+.currencies {
+  --bar-bg: rgba(0, 0, 0, 0.5);              /* black at 50% opacity */
+  --bar-text: rgba(200, 200, 200, 0.65);     /* same as the End Turn text */
+  --bar-height: 36px;
+  position: absolute;
+  top: 200px;   /* from the top of the screen */
+  left: 20px;   /* from the left edge */
+  display: flex;
+  flex-direction: column;
+  gap: 15px;    /* space between bars */
+  z-index: 4;
+}
+.currency {
+  display: flex;
+  gap: 5px;     /* space between the name, the amount and the buttons */
+  height: var(--bar-height);
+}
+.currency-name,
+.currency-value {
+  background: var(--bar-bg);
+  color: var(--bar-text);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+}
+.currency-name { width: 110px; padding: 0 12px; }      /* the long black rectangle */
+.currency-value {                                       /* the square with the amount */
+  min-width: var(--bar-height);                         /* square; widens for big numbers */
+  justify-content: center;
+  padding: 0 6px;
+}
+.currency-buttons {                                     /* + on top of - */
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.currency-buttons button {
+  flex: 1;
+  width: 24px;
+  padding: 0;
+  border: none;
+  background: var(--bar-bg);
+  color: var(--bar-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+.currency-buttons button:hover { color: rgba(230, 230, 230, 0.9); }
+.currency-buttons button:active { background: rgba(0, 0, 0, 0.7); }
+
 /* ---------- Zoom control (top right) ---------- */
 .zoom {
   position: absolute;

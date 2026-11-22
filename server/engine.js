@@ -120,6 +120,7 @@ class Game {
       deck,                          // cards left to draw; the LAST item is the top card
       hand: [],                      // cards in the player's hand, in order drawn
       field: [],                     // cards played onto their board; each has x, y (board pixels, card centre)
+      currency: { ...config.startingCurrency }, // e.g. { coin: 0, funding: 0, rep: 0 }
       drawsThisTurn: 0,              // draws so far this turn (for maxDrawsPerTurn)
       connections: 0,                // open browser tabs for this player; 0 = offline
       lastSeen: Date.now(),          // when they last disconnected (to forget old players)
@@ -149,7 +150,7 @@ class Game {
 
   // ----------------------------------------------------------
   //  ACTIONS: everything a player can do.
-  //  playerId: who is acting. type: which action ("draw", "endTurn", "play", "move").
+  //  playerId: who is acting. type: which action ("draw", "endTurn", "play", "move", "adjust").
   //  data: extra details some actions need (e.g. which card and where).
   //  Returns { ok: true } or { ok: false, error: "message shown to player" }.
   //  To add a new action, add another `if (type === "...")` block.
@@ -226,6 +227,19 @@ class Game {
       return { ok: true };
     }
 
+    // ADJUST: player clicked + or - on a currency bar.
+    // data.currency = "coin", "funding" or "rep"; data.delta = how much to add (1 or -1).
+    if (type === "adjust") {
+      const name = String(data.currency);
+      if (!(name in player.currency)) return { ok: false, error: `Unknown currency "${name}"` };
+      const delta = Number(data.delta);
+      if (!Number.isInteger(delta) || Math.abs(delta) > 1000) return { ok: false, error: "Couldn't tell how much to change it by" };
+      const next = player.currency[name] + delta;
+      if (next < 0 && !config.currencyCanGoNegative) return { ok: false, error: `Not enough ${name}` };
+      player.currency[name] = next;
+      return { ok: true };
+    }
+
     return { ok: false, error: `Unknown action "${type}"` };
   }
 
@@ -255,6 +269,7 @@ class Game {
         deckCount: me.deck.length,
         hand: me.hand.map((card) => ({ ...card })), // copies of the full cards
         field: me.field.map((card) => ({ ...card })), // cards you've played, with their x, y
+        currency: { ...me.currency },                 // { coin, funding, rep }
       },
       // Everyone else, with hidden information left out. Listed in seat
       // order going clockwise from this player (join order, starting
@@ -269,6 +284,7 @@ class Game {
           deckCount: p.deck.length,
           handCount: p.hand.length,
           field: p.field.map((card) => ({ ...card })), // played cards are face up, so everyone sees them
+          currency: { ...p.currency },                 // public for now; not shown on screen yet
           online: p.connections > 0, // true if they have the game open right now
         })),
     };

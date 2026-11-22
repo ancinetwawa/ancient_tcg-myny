@@ -56,6 +56,34 @@
     <div class="my-field-layer"><div id="my-field" class="field"></div></div>
     <div id="players" class="players"></div> <!-- other players' chips, top left -->
 
+    <!-- Currencies, upper left. Each: name, amount, + / - buttons -->
+    <div id="currencies" class="currencies">
+      <div class="currency" data-currency="coin">
+        <div class="currency-name">Coin</div>
+        <div class="currency-value" id="coin-value">0</div>
+        <div class="currency-buttons">
+          <button data-delta="1" aria-label="Add 1 Coin">+</button>
+          <button data-delta="-1" aria-label="Remove 1 Coin">&minus;</button>
+        </div>
+      </div>
+      <div class="currency" data-currency="funding">
+        <div class="currency-name">Funding</div>
+        <div class="currency-value" id="funding-value">0</div>
+        <div class="currency-buttons">
+          <button data-delta="1" aria-label="Add 1 Funding">+</button>
+          <button data-delta="-1" aria-label="Remove 1 Funding">&minus;</button>
+        </div>
+      </div>
+      <div class="currency" data-currency="rep">
+        <div class="currency-name">Rep</div>
+        <div class="currency-value" id="rep-value">0</div>
+        <div class="currency-buttons">
+          <button data-delta="1" aria-label="Add 1 Rep">+</button>
+          <button data-delta="-1" aria-label="Remove 1 Rep">&minus;</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Zoom control, top right -->
     <div class="zoom">
       <button id="zoom-out" aria-label="Zoom out">&minus;</button>
