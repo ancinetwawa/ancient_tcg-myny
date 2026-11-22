@@ -157,23 +157,79 @@ html, body {
 }
 
 /* ---------- End Turn button (bottom right) ---------- */
+/* Two hollow outlines, one inside the other, each with the top-left
+   and bottom-right corners cut off diagonally. The text is the same
+   gray at a lower opacity. The outlines are drawn by ::before (outer)
+   and ::after (inner) below. */
 .end-turn {
+  /* ---- Look settings: tweak these ---- */
+  --frame-color: rgba(200, 200, 200, 0.6);  /* outline gray; last number = opacity (0-1) */
+  --text-color: rgba(200, 200, 200, 0.45);  /* same gray, lower opacity */
+  --cut: 16px;    /* how big the diagonal corner cuts are */
+  --thick: 3px;   /* thickness of each outline */
+  --gap: 4px;     /* space between the outer and inner outline */
+
   position: absolute;
   right: 24px;  /* distance from the right edge */
   bottom: 24px; /* distance from the bottom edge */
   font: inherit;
   font-size: 16px;
   font-weight: 600;
-  padding: 14px 22px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(200, 200, 200, 0.22); /* semi-transparent gray */
-  color: #f2f2f2;
+  letter-spacing: 0.04em;
+  padding: 18px 30px;   /* space between the text and the outlines */
+  border: none;
+  background: none;     /* hollow: the table shows through */
+  color: var(--text-color);
   cursor: pointer;
-  backdrop-filter: blur(2px);
+  transition: color 0.15s;
 }
-.end-turn:hover { background: rgba(220, 220, 220, 0.32); }  /* lighter on hover */
-.end-turn:active { background: rgba(220, 220, 220, 0.42); } /* lighter still when clicked */
+
+/* Both outlines share this shape: a cut-corner rectangle with a
+   cut-corner hole in the middle (that's what makes it hollow).
+   0.414 keeps the diagonal edges the same thickness as the straight ones. */
+.end-turn::before,
+.end-turn::after {
+  content: "";
+  position: absolute;
+  background: var(--frame-color);
+  transition: background 0.15s;
+  pointer-events: none;
+  --t: var(--thick);
+  clip-path: polygon(evenodd,
+    /* outer edge */
+    var(--c) 0, 100% 0, 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, 0 100%, 0 var(--c), var(--c) 0,
+    /* inner edge (the hole) */
+    calc(var(--c) + var(--t) * 0.414) var(--t),
+    calc(100% - var(--t)) var(--t),
+    calc(100% - var(--t)) calc(100% - var(--c) - var(--t) * 0.414),
+    calc(100% - var(--c) - var(--t) * 0.414) calc(100% - var(--t)),
+    var(--t) calc(100% - var(--t)),
+    var(--t) calc(var(--c) + var(--t) * 0.414),
+    calc(var(--c) + var(--t) * 0.414) var(--t));
+}
+
+/* Outer outline: the full size of the button */
+.end-turn::before {
+  inset: 0;
+  --c: var(--cut);
+}
+
+/* Inner outline: shrunk inward by the outer thickness + gap, with a
+   slightly smaller cut so its diagonals stay parallel to the outer ones */
+.end-turn::after {
+  inset: calc(var(--thick) + var(--gap));
+  --c: calc(var(--cut) - (var(--thick) + var(--gap)) * 0.586);
+}
+
+/* Brighter on hover, brighter still while clicking */
+.end-turn:hover {
+  --frame-color: rgba(220, 220, 220, 0.8);
+  --text-color: rgba(220, 220, 220, 0.65);
+}
+.end-turn:active {
+  --frame-color: rgba(235, 235, 235, 0.95);
+  --text-color: rgba(235, 235, 235, 0.8);
+}
 
 /* ---------- Players ---------- */
 /* Your own name, bottom left */
