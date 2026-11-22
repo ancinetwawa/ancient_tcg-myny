@@ -89,6 +89,20 @@ test("can't play a card you don't have, or with no position", () => {
   assert.equal(a.hand.length, 1);
 });
 
+test("moving a played card changes its position; only your own", () => {
+  const game = gameWith();
+  const a = game.addPlayer("Ana");
+  const b = game.addPlayer("Ben");
+  game.act(a.id, "draw");
+  const uid = a.hand[0].uid;
+  game.act(a.id, "play", { uid, x: 100, y: 100 });
+  assert.deepEqual(game.act(a.id, "move", { uid, x: 400, y: 250 }), { ok: true });
+  assert.equal(a.field[0].x, 400);
+  assert.equal(a.field[0].y, 250);
+  assert.equal(game.act(b.id, "move", { uid, x: 0, y: 0 }).ok, false, "can't move someone else's card");
+  assert.equal(a.field[0].x, 400);
+});
+
 test("onBeforePlay can block a play", () => {
   const game = gameWith({}, { onBeforePlay: () => "block" });
   const a = game.addPlayer("Ana");

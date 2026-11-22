@@ -100,7 +100,7 @@ class Game {
 
   // ----------------------------------------------------------
   //  ACTIONS: everything a player can do.
-  //  playerId: who is acting. type: which action ("draw", "endTurn", "play").
+  //  playerId: who is acting. type: which action ("draw", "endTurn", "play", "move").
   //  data: extra details some actions need (e.g. which card and where).
   //  Returns { ok: true } or { ok: false, error: "message shown to player" }.
   //  To add a new action, add another `if (type === "...")` block.
@@ -156,6 +156,22 @@ class Game {
       card.y = Math.max(-5000, Math.min(5000, y));
       player.field.push(card);
       this.hook("onPlay", { player, card });
+      return { ok: true };
+    }
+
+    // MOVE: player dragged one of their cards already on the board to a new spot.
+    // data.uid = which card; data.x, data.y = its new centre, in board pixels.
+    if (type === "move") {
+      const card = player.field.find((c) => c.uid === data.uid);
+      if (!card) return { ok: false, error: "That card isn't on your board" };
+      const x = Number(data.x), y = Number(data.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, error: "Couldn't tell where to move that" };
+      if (this.hook("onBeforeMove", { player, card }) === "block") {
+        return { ok: false, error: "You can't move that card right now" };
+      }
+      card.x = Math.max(-5000, Math.min(5000, x));
+      card.y = Math.max(-5000, Math.min(5000, y));
+      this.hook("onMove", { player, card });
       return { ok: true };
     }
 

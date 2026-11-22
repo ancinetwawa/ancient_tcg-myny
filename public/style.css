@@ -335,6 +335,27 @@ html, body {
   position: absolute;
   translate: -50% -50%; /* centre the card on its x, y */
 }
+#my-field .card { pointer-events: auto; cursor: grab; user-select: none; } /* your played cards can be picked up and moved */
+
+/* Layer for your played cards: above your hand (z-index 2), so a card moved
+   down near the hand shows on top of it and gets clicked first. */
+.my-field-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 3;
+}
+#my-field {
+  inset: auto;
+  left: 0;
+  top: 0;
+  width: var(--board-w);   /* same size as your board... */
+  height: var(--board-h);
+  transform-origin: 0 0;   /* ...and client.js moves/scales it to sit exactly on your board */
+}
+/* Screen controls stay above your played cards */
+.players, .zoom, .end-turn, .toast { z-index: 4; }
 
 /* The card you're holding or about to play. Lives on the screen, not the
    table, so zoom doesn't affect it. client.js sets --gx/--gy (its centre

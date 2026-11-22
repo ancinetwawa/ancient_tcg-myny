@@ -25,6 +25,7 @@ let tableLayout = null;               // where every board sits (see layoutTable
 let lastView = null;                  // the most recent game state from the server
 let heldUid = null;                   // uid of the card you've picked up (kept out of your hand while held)
 let lastMomentHeld = null;            // where you let go of a held card: { screenX, screenY, boardX, boardY }
+let inPlay = false;                   // true when the held card was picked up from the board (not your hand)
 
 // Pre-fill the name box with the name used last time
 $("name-input").value = store.get("playerName") || "";
@@ -127,13 +128,14 @@ function render(view) {
   $("deck").classList.toggle("empty", you.deckCount === 0);
 
   renderHand(you);
-  renderField($("my-field"), you.field);
+  renderField($("my-field"), you.field, inPlay ? heldUid : null);
 
   // Other players' boards
   layoutTable(renderOtherBoards(others));
 
-  // The card you're about to play has left your hand some other way: drop it
-  if (heldUid !== null && !you.hand.some((c) => c.uid === heldUid)) endHold();
+  // The card you're holding has left your hand (or board) some other way: drop it
+  const heldFrom = inPlay ? you.field : you.hand;
+  if (heldUid !== null && !heldFrom.some((c) => c.uid === heldUid)) endHold();
 
   // Other players: one chip each at the top of the screen
   const list = $("players");
@@ -227,9 +229,11 @@ function renderHand(you) {
 
 // Cards played onto a board (yours or another player's). Updated in place
 // like the hand. Each card sits with its centre at its x, y on the board.
-function renderField(field, cards) {
+// skipUid: a card you're currently moving, left out while it's held.
+function renderField(field, cards, skipUid = null) {
   const shown = new Map([...field.children].map((el) => [el.dataset.uid, el]));
   for (const card of cards) {
+    if (card.uid === skipUid) continue;
     let el = shown.get(String(card.uid));
     if (!el) {
       el = makeCardElement(card);
@@ -414,6 +418,7 @@ function applyZoom() {
   $("world-sizer").style.width = `${tableLayout.width * scale}px`;   // lets the page scroll
   $("world-sizer").style.height = `${tableLayout.height * scale}px`; // over the whole zoomed table
   $("zoom-level").textContent = `${Math.round(zoom * 100)}%`;
+  syncMyField();
   $("zoom-out").disabled = zoom <= minZoom() + 0.001;
   $("zoom-in").disabled = zoom >= MAX_ZOOM - 0.001;
 }
@@ -439,6 +444,14 @@ function zoomBy(step) {
   view.scrollLeft = centerX * newScale - view.clientWidth / 2;
   view.scrollTop = centerY * newScale - view.clientHeight / 2;
 }
+// Lines your played-cards layer up with your board (it lives on its own
+// layer above your hand, so it has to follow the board's scroll and zoom).
+function syncMyField() {
+  const board = $("my-board").getBoundingClientRect(); // where your board is on screen right now
+  $("my-field").style.transform = `translate(${board.left}px, ${board.top}px) scale(${BASE_SCALE * zoom})`;
+}
+$("viewport").addEventListener("scroll", syncMyField);
+
 $("zoom-in").addEventListener("click", () => zoomBy(ZOOM_STEP));
 $("zoom-out").addEventListener("click", () => zoomBy(-ZOOM_STEP));
 window.addEventListener("resize", applyZoom);
@@ -543,6 +556,7 @@ document.querySelectorAll(".frame-btn").forEach((button) => frameObserver.observ
 const HOLD_SCALE = 1.25;               // size while dragging, compared with a card in your hand (+25%)
 const STAGE_SCALE = HOLD_SCALE * 1.5;  // size in the middle of the screen (another +50%); if you change this, update .stage-buttons in style.css
 const PLAY_DISTANCE = 50;       // how far above your hand (pixels) the card's bottom must be to play it
+const LOWEST_BELOW_SCREEN = 50; // a played/moved card's bottom can go at most this far past the bottom of the screen
 
 let heldCard = null;  // the floating card element while holding or staging
 let holdState = null; // null, "dragging" or "staged"
@@ -563,14 +577,16 @@ function placeHeld(x, y, scale) {
   heldCard.style.setProperty("--gs", scale);
 }
 
-// 1. Pick up: press on a card in your hand
-$("hand").addEventListener("pointerdown", (e) => {
+// 1. Pick up: press on a card in your hand, or on one of your cards on the board.
+// fromBoard: true when it's a card already in play (sets inPlay).
+function pickUp(e, cards, fromBoard) {
   const cardEl = e.target.closest(".card");
   if (!cardEl || e.button !== 0 || holdState) return;
-  const card = lastView.you.hand.find((c) => String(c.uid) === cardEl.dataset.uid);
+  const card = cards.find((c) => String(c.uid) === cardEl.dataset.uid);
   if (!card) return;
   e.preventDefault();
 
+  inPlay = fromBoard;
   heldUid = card.uid;
   heldCard = makeCardElement(card);
   heldCard.classList.remove("placing");
@@ -579,11 +595,14 @@ $("hand").addEventListener("pointerdown", (e) => {
   placeHeld(e.clientX, e.clientY, HOLD_SCALE);
   holdState = "dragging";
   setDragging(true);
-  renderHand(lastView.you); // takes the card out of the hand; the rest close up
+  renderHand(lastView.you);                                // takes the card out of the hand...
+  renderField($("my-field"), lastView.you.field, inPlay ? heldUid : null); // ...or off the board while held
 
   window.addEventListener("pointermove", dragMove);
   window.addEventListener("pointerup", dragEnd, { once: true });
-});
+}
+$("hand").addEventListener("pointerdown", (e) => pickUp(e, lastView.you.hand, false));
+$("my-field").addEventListener("pointerdown", (e) => pickUp(e, lastView.you.field, true));
 
 // The card follows the cursor
 function dragMove(e) {
@@ -596,25 +615,49 @@ function dragEnd(e) {
   setDragging(false);
   if (holdState !== "dragging") return;
 
-  const cardBottom = e.clientY + (heldCard.offsetHeight * HOLD_SCALE) / 2;
-  const handTop = $("hand").getBoundingClientRect().top;
-  if (handTop - cardBottom <= PLAY_DISTANCE) return endHold(); // not far enough: back to the hand
-
   // Remember where it was let go, on screen and on your board
   const board = $("my-board").getBoundingClientRect();
   const scale = BASE_SCALE * zoom; // how big the table is drawn right now
+  // Keep the card from going too far down: its bottom stops LOWEST_BELOW_SCREEN past the screen edge
+  const cardHalfHeight = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--card-h")) * scale) / 2;
+  const y = Math.min(e.clientY, window.innerHeight + LOWEST_BELOW_SCREEN - cardHalfHeight);
   lastMomentHeld = {
     screenX: e.clientX,
-    screenY: e.clientY,
+    screenY: y,
     boardX: (e.clientX - board.left) / scale,
-    boardY: (e.clientY - board.top) / scale,
+    boardY: (y - board.top) / scale,
   };
+
+  // A card already in play: no Play/Cancel, no extra growth; just move it there
+  if (inPlay) return moveInPlay();
+
+  const cardBottom = e.clientY + (heldCard.offsetHeight * HOLD_SCALE) / 2;
+  const handTop = $("hand").getBoundingClientRect().top;
+  if (handTop - cardBottom <= PLAY_DISTANCE) return endHold(); // not far enough: back to the hand
 
   // Glide to the middle of the screen, bigger, with Play and Cancel
   holdState = "staged";
   heldCard.classList.add("staged");
   placeHeld(window.innerWidth / 2, window.innerHeight / 2, STAGE_SCALE);
   $("stage-buttons").classList.remove("hidden");
+}
+
+// Moves a card that's already in play to where it was let go.
+async function moveInPlay() {
+  const uid = heldUid;
+  const { boardX: x, boardY: y } = lastMomentHeld;
+  heldCard.remove(); // the card shows at its new spot straight away...
+  heldCard = null;
+  holdState = "moving";
+  const mine = lastView.you.field.find((c) => c.uid === uid);
+  const from = mine && { x: mine.x, y: mine.y };
+  if (mine) Object.assign(mine, { x, y });
+  endHold();
+  const moved = await act("move", { uid, x, y });
+  if (!moved && mine && from) {   // ...and goes back if the server refuses
+    Object.assign(mine, from);
+    renderField($("my-field"), lastView.you.field);
+  }
 }
 
 // 3a. Cancel: the card goes back to your hand
@@ -646,8 +689,12 @@ function endHold() {
   heldCard = null;
   holdState = null;
   heldUid = null;
+  inPlay = false;
   $("stage-buttons").classList.add("hidden");
-  if (lastView) renderHand(lastView.you);
+  if (lastView) {
+    renderHand(lastView.you);
+    renderField($("my-field"), lastView.you.field);
+  }
 }
 
 // Shows a short message at the top of the screen for 2 seconds.

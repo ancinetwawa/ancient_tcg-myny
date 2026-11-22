@@ -151,7 +151,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // POST /api/action - a player does something ({ playerId, type: "draw" | "endTurn" | "play", ...details })
+  // POST /api/action - a player does something ({ playerId, type: "draw" | "endTurn" | "play" | "move", ...details })
   if (req.method === "POST" && url.pathname === "/api/action") {
     const body = await readJson(req);
     const result = game.act(body.playerId, String(body.type || ""), body); // body also carries details like uid, x, y

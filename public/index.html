@@ -39,7 +39,6 @@
                 <span id="deck-count" class="deck-count"></span>   <!-- "60 cards" label -->
               </button>
             </div>
-            <div id="my-field" class="field"></div>               <!-- cards you've played -->
             <div id="you-label" class="board-name"></div>          <!-- your name, bottom left -->
           </div>
 
@@ -49,6 +48,9 @@
 
     <!-- Things that stay put on screen while the table scrolls -->
     <div id="hand" class="hand my-hand"></div> <!-- your hand, bottom center; client.js fills in the cards -->
+    <!-- Cards you've played. Drawn on their own layer ABOVE your hand (so they never get stuck under it);
+         client.js keeps this lined up with your board as you scroll and zoom. -->
+    <div class="my-field-layer"><div id="my-field" class="field"></div></div>
     <div id="players" class="players"></div> <!-- other players' chips, top left -->
 
     <!-- Zoom control, top right -->

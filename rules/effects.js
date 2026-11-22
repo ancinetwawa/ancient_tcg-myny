@@ -8,8 +8,8 @@
 //                  ({ uid, id, ...the card's fields from cards.js })
 //    ctx.game    - the whole game (ctx.game.players is a Map)
 //
-//  Return the string "block" from onBeforeDraw or onBeforePlay to
-//  stop that draw or play.
+//  Return the string "block" from onBeforeDraw, onBeforePlay or
+//  onBeforeMove to stop that draw, play or move.
 // ============================================================
 
 module.exports = {
@@ -35,4 +35,10 @@ module.exports = {
   // Runs after a card has been played onto the board.
   // ctx.card has x and y: where on the board it was placed.
   onPlay(ctx) {},
+
+  // Runs before a card already on the board is moved. Return "block" to cancel it.
+  onBeforeMove(ctx) {},
+
+  // Runs after a card on the board has been moved. ctx.card has its new x and y.
+  onMove(ctx) {},
 };
