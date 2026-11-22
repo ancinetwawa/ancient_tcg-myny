@@ -556,7 +556,7 @@ document.querySelectorAll(".frame-btn").forEach((button) => frameObserver.observ
 const HOLD_SCALE = 1.25;               // size while dragging, compared with a card in your hand (+25%)
 const STAGE_SCALE = HOLD_SCALE * 1.5;  // size in the middle of the screen (another +50%); if you change this, update .stage-buttons in style.css
 const PLAY_DISTANCE = 50;       // how far above your hand (pixels) the card's bottom must be to play it
-const LOWEST_BELOW_SCREEN = 50; // a played/moved card's bottom can go at most this far past the bottom of the screen
+const BOTTOM_BUFFER = 50;       // played/moved cards stay at least this far above the bottom of the screen
 
 let heldCard = null;  // the floating card element while holding or staging
 let holdState = null; // null, "dragging" or "staged"
@@ -618,9 +618,9 @@ function dragEnd(e) {
   // Remember where it was let go, on screen and on your board
   const board = $("my-board").getBoundingClientRect();
   const scale = BASE_SCALE * zoom; // how big the table is drawn right now
-  // Keep the card from going too far down: its bottom stops LOWEST_BELOW_SCREEN past the screen edge
+  // Keep the card from going too far down: its bottom stops BOTTOM_BUFFER above the screen's bottom edge
   const cardHalfHeight = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--card-h")) * scale) / 2;
-  const y = Math.min(e.clientY, window.innerHeight + LOWEST_BELOW_SCREEN - cardHalfHeight);
+  const y = Math.min(e.clientY, window.innerHeight - BOTTOM_BUFFER - cardHalfHeight);
   lastMomentHeld = {
     screenX: e.clientX,
     screenY: y,
