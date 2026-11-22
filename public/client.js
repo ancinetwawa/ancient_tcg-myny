@@ -546,6 +546,15 @@ const PLAY_DISTANCE = 50;       // how far above your hand (pixels) the card's b
 
 let heldCard = null;  // the floating card element while holding or staging
 let holdState = null; // null, "dragging" or "staged"
+let isDragging = false; // true while a card is being dragged; your hand can't highlight then
+
+// Turns dragging on or off. While it's on, the hand gets the "dragging"
+// class, and style.css only highlights the hand and its cards when that
+// class is NOT there, so other cards can't light up while you play one.
+function setDragging(on) {
+  isDragging = on;
+  $("hand").classList.toggle("dragging", on);
+}
 
 // Puts the floating card's centre at (x, y) on screen, at a given size.
 function placeHeld(x, y, scale) {
@@ -569,6 +578,7 @@ $("hand").addEventListener("pointerdown", (e) => {
   document.body.appendChild(heldCard);
   placeHeld(e.clientX, e.clientY, HOLD_SCALE);
   holdState = "dragging";
+  setDragging(true);
   renderHand(lastView.you); // takes the card out of the hand; the rest close up
 
   window.addEventListener("pointermove", dragMove);
@@ -583,6 +593,7 @@ function dragMove(e) {
 // 2. Let go
 function dragEnd(e) {
   window.removeEventListener("pointermove", dragMove);
+  setDragging(false);
   if (holdState !== "dragging") return;
 
   const cardBottom = e.clientY + (heldCard.offsetHeight * HOLD_SCALE) / 2;
@@ -630,6 +641,7 @@ $("play-btn").addEventListener("click", async () => {
 // Clears the floating card and buttons, and shows the hand as the server has it.
 function endHold() {
   window.removeEventListener("pointermove", dragMove);
+  setDragging(false);
   heldCard?.remove();
   heldCard = null;
   holdState = null;

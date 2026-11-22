@@ -225,20 +225,22 @@ html, body {
   z-index: -1;
 }
 /* While your hand is highlighted, the hover area grows so it's harder to slip off by accident */
-.my-hand:hover .card::before {
+.my-hand:not(.dragging):hover .card::before {
   inset: -75px -20px -300px -20px; /* top, right, bottom, left */
 }
 /* Your hand has three looks:
    1. Looking at the board: curved, bottom 20% hidden (above).
    2. Mouse over your hand: slides fully up and grows 5%, keeping its curve.
       --hand-lift (set by client.js) raises it so even the lowest edge card is fully on screen. */
-.my-hand:hover {
+/* Every hand highlight below also checks :not(.dragging), so nothing in your
+   hand highlights while you're dragging a card (client.js adds .dragging). */
+.my-hand:not(.dragging):hover {
   translate: 0 calc(var(--hand-lift, 0px) * -1.05 - 4px);
   scale: 1.05;
   transform-origin: 50% 100%; /* grows upward from the bottom middle */
 }
 /* 3. Mouse over one card: that card lifts and grows a little more */
-.my-hand .card:hover {
+.my-hand:not(.dragging) .card:hover {
   translate: var(--x, 0) calc(var(--y, 0px) - 24px);
   scale: 1.12;
   z-index: 1;
