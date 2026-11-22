@@ -67,6 +67,36 @@ test("other players are listed clockwise starting after you", () => {
   assert.equal(names(d), "ABC");
 });
 
+test("playing a card moves it from hand to the board at the given spot", () => {
+  const game = gameWith();
+  const a = game.addPlayer("Ana");
+  const b = game.addPlayer("Ben");
+  game.act(a.id, "draw");
+  const uid = a.hand[0].uid;
+  assert.deepEqual(game.act(a.id, "play", { uid, x: 300, y: 120 }), { ok: true });
+  assert.equal(a.hand.length, 0);
+  assert.equal(a.field.length, 1);
+  assert.equal(game.viewFor(a.id).you.field[0].x, 300);
+  assert.equal(game.viewFor(b.id).others[0].field[0].y, 120, "other players see played cards");
+});
+
+test("can't play a card you don't have, or with no position", () => {
+  const game = gameWith();
+  const a = game.addPlayer("Ana");
+  game.act(a.id, "draw");
+  assert.equal(game.act(a.id, "play", { uid: 9999, x: 0, y: 0 }).ok, false);
+  assert.equal(game.act(a.id, "play", { uid: a.hand[0].uid }).ok, false);
+  assert.equal(a.hand.length, 1);
+});
+
+test("onBeforePlay can block a play", () => {
+  const game = gameWith({}, { onBeforePlay: () => "block" });
+  const a = game.addPlayer("Ana");
+  game.act(a.id, "draw");
+  assert.equal(game.act(a.id, "play", { uid: a.hand[0].uid, x: 0, y: 0 }).ok, false);
+  assert.equal(a.field.length, 0);
+});
+
 test("maxDrawsPerTurn limits draws and resets each turn", () => {
   const game = gameWith({ maxDrawsPerTurn: 1 });
   const p = game.addPlayer("Ana");

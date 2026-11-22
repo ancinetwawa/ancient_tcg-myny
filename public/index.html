@@ -39,6 +39,7 @@
                 <span id="deck-count" class="deck-count"></span>   <!-- "60 cards" label -->
               </button>
             </div>
+            <div id="my-field" class="field"></div>               <!-- cards you've played -->
             <div id="you-label" class="board-name"></div>          <!-- your name, bottom left -->
           </div>
 
@@ -58,7 +59,13 @@
     </div>
 
     <!-- End Turn button. client.js draws its outlines behind the label. -->
-    <button id="end-turn" class="end-turn"><span id="end-turn-label">End Turn 1</span></button>
+    <button id="end-turn" class="frame-btn end-turn"><span id="end-turn-label">End Turn 1</span></button>
+
+    <!-- Play / Cancel: shown next to a card you're about to play -->
+    <div id="stage-buttons" class="stage-buttons hidden">
+      <button id="play-btn" class="frame-btn"><span>Play</span></button>
+      <button id="cancel-btn" class="frame-btn"><span>Cancel</span></button>
+    </div>
     <div id="toast" class="toast" role="status"></div> <!-- pop-up messages -->
   </section>
 

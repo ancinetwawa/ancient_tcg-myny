@@ -151,10 +151,10 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // POST /api/action - a player does something ({ playerId, type: "draw" | "endTurn" })
+  // POST /api/action - a player does something ({ playerId, type: "draw" | "endTurn" | "play", ...details })
   if (req.method === "POST" && url.pathname === "/api/action") {
     const body = await readJson(req);
-    const result = game.act(body.playerId, String(body.type || ""));
+    const result = game.act(body.playerId, String(body.type || ""), body); // body also carries details like uid, x, y
     if (result.ok) broadcast(); // only update screens if something changed
     return sendJson(res, result.ok ? 200 : 400, result);
   }

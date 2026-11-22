@@ -259,12 +259,13 @@ html, body {
   to { transform: none; opacity: 1; }
 }
 
-/* ---------- End Turn button (bottom right) ---------- */
+/* ---------- Framed buttons: End Turn, Play, Cancel ---------- */
 /* Two hollow outlines, one inside the other, each with the top-left
    and bottom-right corners cut off diagonally and slightly rounded.
    The text is the same gray at a lower opacity. The outlines are drawn
-   by drawEndTurnFrame() in client.js, which reads the settings below. */
-.end-turn {
+   by drawButtonFrame() in client.js, which reads the settings below.
+   Every button with class="frame-btn" gets this look. */
+.frame-btn {
   /* ---- Look settings: tweak these ---- */
   --frame-color: rgba(200, 200, 200, 0.8);  /* outline gray; last number = opacity (0-1) */
   --text-color: rgba(200, 200, 200, 0.65);  /* same gray, lower opacity */
@@ -274,9 +275,7 @@ html, body {
   --gap: 4px;           /* space between the outer and inner outline */
   --inner-shift: 0px;   /* nudges the inner outline right (negative = left) */
 
-  position: absolute;
-  right: 75px;  /* distance from the right edge */
-  bottom: 120px; /* distance from the bottom edge */
+  position: relative;
   font: inherit;
   font-size: 16px;
   font-weight: 600;
@@ -289,10 +288,10 @@ html, body {
   transition: color 0.15s;
 }
 
-#end-turn-label { position: relative; } /* keeps the text above the outlines */
+.frame-btn > span { position: relative; } /* keeps the text above the outlines */
 
 /* The drawing that holds both outlines (added by client.js) */
-.end-turn .frame {
+.frame-btn .frame {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -300,7 +299,7 @@ html, body {
   overflow: visible;
   pointer-events: none;
 }
-.end-turn .frame path {
+.frame-btn .frame path {
   fill: none;
   stroke: var(--frame-color);
   stroke-width: var(--thick);
@@ -308,13 +307,60 @@ html, body {
 }
 
 /* Brighter on hover, brighter still while clicking */
-.end-turn:hover {
+.frame-btn:hover {
   --frame-color: rgba(220, 220, 220, 0.9);
   --text-color: rgba(220, 220, 220, 0.8);
 }
-.end-turn:active {
+.frame-btn:active {
   --frame-color: rgba(240, 240, 240, 1);
   --text-color: rgba(240, 240, 240, 0.95);
+}
+.frame-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* End Turn's spot on screen */
+.end-turn {
+  position: absolute;
+  right: 75px;   /* distance from the right edge */
+  bottom: 120px; /* distance from the bottom edge */
+}
+
+/* ---------- Playing a card ---------- */
+.my-hand .card { user-select: none; } /* so dragging doesn't select text */
+
+/* Cards played onto a board. x, y (from the server) are the card's centre. */
+.field { position: absolute; inset: 0; pointer-events: none; }
+.field .card {
+  position: absolute;
+  translate: -50% -50%; /* centre the card on its x, y */
+}
+
+/* The card you're holding or about to play. Lives on the screen, not the
+   table, so zoom doesn't affect it. client.js sets --gx/--gy (its centre
+   on screen) and --gs (its size compared with a card in your hand). */
+.held-card {
+  --card-w: 85px;   /* same base size as cards in your hand */
+  --card-h: 119px;
+  position: fixed;
+  left: 0;
+  top: 0;
+  translate: calc(var(--gx) - var(--card-w) / 2) calc(var(--gy) - var(--card-h) / 2);
+  scale: var(--gs);
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+}
+.held-card.staged { transition: translate 0.2s, scale 0.2s; } /* glides to the middle of the screen */
+
+/* Play and Cancel, to the right of the card in the middle of the screen */
+.stage-buttons {
+  position: fixed;
+  left: calc(50vw + 85px * 1.25 * 1.5 / 2 + 32px); /* half the staged card's width (STAGE_SCALE in client.js) + a gap */
+  top: 50vh;
+  translate: 0 -50%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  z-index: 10;
 }
 
 /* ---------- Players ---------- */

@@ -22,6 +22,9 @@ let seenCardUids = new Set();         // card uids already shown, so only NEW ca
 let firstRender = true;               // true until the table is drawn once (skip animation then)
 let zoom = 1;                         // current zoom: 1 = 100%
 let tableLayout = null;               // where every board sits (see layoutTable)
+let lastView = null;                  // the most recent game state from the server
+let heldUid = null;                   // uid of the card you've picked up (kept out of your hand while held)
+let lastMomentHeld = null;            // where you let go of a held card: { screenX, screenY, boardX, boardY }
 
 // Pre-fill the name box with the name used last time
 $("name-input").value = store.get("playerName") || "";
@@ -74,6 +77,8 @@ function connect() {
     tableLayout = null;
     seenCardUids = new Set();
     $("hand").innerHTML = "";
+    $("my-field").innerHTML = "";
+    endHold();
     for (const board of otherBoards.values()) board.remove();
     otherBoards.clear();
     $("table").classList.add("hidden");
@@ -82,19 +87,23 @@ function connect() {
   });
 }
 
-// Sends an action to the server. type: "draw" or "endTurn".
+// Sends an action to the server. type: "draw", "endTurn" or "play".
+// details: extra info some actions need (e.g. { uid, x, y } for play).
 // If the rules refuse it, the reason pops up as a message.
-async function act(type) {
+// Returns true if it worked.
+async function act(type, details = {}) {
   try {
     const res = await fetch("/api/action", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerId, type }),
+      body: JSON.stringify({ ...details, playerId, type }),
     });
     const data = await res.json();
     if (!data.ok) toast(data.error);
+    return data.ok;
   } catch {
     toast("Lost connection to the server");
+    return false;
   }
 }
 
@@ -108,6 +117,7 @@ $("end-turn").addEventListener("click", () => act("endTurn"));
 //  view.others = other players' name, turn, handCount, online
 // ============================================================
 function render(view) {
+  lastView = view;
   const { you, others } = view;
 
   // Our name, the End Turn button, and the deck
@@ -116,27 +126,14 @@ function render(view) {
   $("deck-count").textContent = you.deckCount === 0 ? "Deck empty" : `${you.deckCount} cards`;
   $("deck").classList.toggle("empty", you.deckCount === 0);
 
-  // Our hand: update it in place. Cards already showing are kept as they
-  // are (so they don't jump or re-animate); only new cards are added and
-  // cards that left the hand are removed.
-  const hand = $("hand");
-  const shown = new Map([...hand.children].map((el) => [el.dataset.uid, el])); // uid -> card element on screen
-  you.hand.forEach((card, i) => {
-    let el = shown.get(String(card.uid));
-    if (!el) {
-      el = makeCardElement(card);
-      if (!firstRender && !seenCardUids.has(card.uid)) el.classList.add("new"); // slide-in animation
-    }
-    seenCardUids.add(card.uid);
-    shown.delete(String(card.uid));
-    if (hand.children[i] !== el) hand.insertBefore(el, hand.children[i] || null); // only moves cards whose order changed
-  });
-  for (const gone of shown.values()) gone.remove(); // cards no longer in the hand
-  layoutFan(hand);
-  firstRender = false;
+  renderHand(you);
+  renderField($("my-field"), you.field);
 
   // Other players' boards
   layoutTable(renderOtherBoards(others));
+
+  // The card you're about to play has left your hand some other way: drop it
+  if (heldUid !== null && !you.hand.some((c) => c.uid === heldUid)) endHold();
 
   // Other players: one chip each at the top of the screen
   const list = $("players");
@@ -205,6 +202,47 @@ function layoutFan(hand) {
 //  Same layout as yours, but their hand shows face-down cards and
 //  their deck can't be clicked. Rebuilt on every update.
 // ============================================================
+// Your hand: updated in place. Cards already showing are kept as they
+// are (so they don't jump or re-animate); only new cards are added and
+// cards that left the hand are removed. A card you're holding is left out.
+function renderHand(you) {
+  const hand = $("hand");
+  const shown = new Map([...hand.children].map((el) => [el.dataset.uid, el])); // uid -> card element on screen
+  you.hand
+    .filter((card) => card.uid !== heldUid)
+    .forEach((card, i) => {
+      let el = shown.get(String(card.uid));
+      if (!el) {
+        el = makeCardElement(card);
+        if (!firstRender && !seenCardUids.has(card.uid)) el.classList.add("new"); // slide-in animation
+      }
+      seenCardUids.add(card.uid);
+      shown.delete(String(card.uid));
+      if (hand.children[i] !== el) hand.insertBefore(el, hand.children[i] || null); // only moves cards whose order changed
+    });
+  for (const gone of shown.values()) gone.remove(); // cards no longer in the hand
+  layoutFan(hand);
+  firstRender = false;
+}
+
+// Cards played onto a board (yours or another player's). Updated in place
+// like the hand. Each card sits with its centre at its x, y on the board.
+function renderField(field, cards) {
+  const shown = new Map([...field.children].map((el) => [el.dataset.uid, el]));
+  for (const card of cards) {
+    let el = shown.get(String(card.uid));
+    if (!el) {
+      el = makeCardElement(card);
+      el.classList.remove("placing");
+      field.appendChild(el);
+    }
+    shown.delete(String(card.uid));
+    el.style.left = `${card.x}px`;
+    el.style.top = `${card.y}px`;
+  }
+  for (const gone of shown.values()) gone.remove();
+}
+
 // Builds one card element (used for cards in your hand).
 function makeCardElement(card) {
   const el = document.createElement("div");
@@ -246,6 +284,7 @@ function renderOtherBoards(others) {
       board = document.createElement("div");
       board.innerHTML = `
         <div class="deck-area"><div class="deck"><span class="deck-stack"></span><span class="deck-count"></span></div></div>
+        <div class="field"></div>
         <div class="hand"></div>
         <div class="board-name"></div>`;
       $("world").appendChild(board);
@@ -267,6 +306,7 @@ function renderOtherBoards(others) {
     }
     while (hand.children.length > p.handCount) hand.lastChild.remove();
     layoutFan(hand);
+    renderField(board.querySelector(".field"), p.field);
     return board;
   });
 }
@@ -404,10 +444,10 @@ $("zoom-out").addEventListener("click", () => zoomBy(-ZOOM_STEP));
 window.addEventListener("resize", applyZoom);
 
 // ============================================================
-//  END TURN BUTTON OUTLINES
-//  Draws the two cut-corner outlines as an SVG sized to the button.
+//  FRAMED BUTTON OUTLINES (End Turn, Play, Cancel)
+//  Draws the two cut-corner outlines as an SVG sized to each button.
 //  The look settings (--cut, --round, --thick, --gap, --inner-shift)
-//  are in the .end-turn section of style.css. Redraws whenever the
+//  are in the .frame-btn section of style.css. Redraws whenever a
 //  button changes size (e.g. "End Turn 9" -> "End Turn 10").
 // ============================================================
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -445,8 +485,7 @@ function cutCornerPoints(x0, y0, x1, y1, cut) {
   ];
 }
 
-function drawEndTurnFrame() {
-  const button = $("end-turn");
+function drawButtonFrame(button) {
   const css = getComputedStyle(button);
   const setting = (name) => parseFloat(css.getPropertyValue(name)) || 0;
   const cut = setting("--cut");
@@ -487,7 +526,117 @@ function drawEndTurnFrame() {
     innerRadii
   ));
 }
-new ResizeObserver(drawEndTurnFrame).observe($("end-turn"));
+const frameObserver = new ResizeObserver((entries) => entries.forEach((e) => drawButtonFrame(e.target)));
+document.querySelectorAll(".frame-btn").forEach((button) => frameObserver.observe(button));
+
+// ============================================================
+//  PLAYING A CARD
+//  1. Press and hold a card in your hand: it leaves the hand, grows,
+//     and follows the cursor.
+//  2. Let go far enough above your hand: it moves to the middle of the
+//     screen and grows again, with Play and Cancel next to it. Where
+//     you let go is saved in lastMomentHeld.
+//     Let go too close to your hand: it goes back.
+//  3. Cancel: back to the hand. Play: placed on your board at the spot
+//     you let go, at the same size as your deck.
+// ============================================================
+const HOLD_SCALE = 1.25;               // size while dragging, compared with a card in your hand (+25%)
+const STAGE_SCALE = HOLD_SCALE * 1.5;  // size in the middle of the screen (another +50%); if you change this, update .stage-buttons in style.css
+const PLAY_DISTANCE = 50;       // how far above your hand (pixels) the card's bottom must be to play it
+
+let heldCard = null;  // the floating card element while holding or staging
+let holdState = null; // null, "dragging" or "staged"
+
+// Puts the floating card's centre at (x, y) on screen, at a given size.
+function placeHeld(x, y, scale) {
+  heldCard.style.setProperty("--gx", `${x}px`);
+  heldCard.style.setProperty("--gy", `${y}px`);
+  heldCard.style.setProperty("--gs", scale);
+}
+
+// 1. Pick up: press on a card in your hand
+$("hand").addEventListener("pointerdown", (e) => {
+  const cardEl = e.target.closest(".card");
+  if (!cardEl || e.button !== 0 || holdState) return;
+  const card = lastView.you.hand.find((c) => String(c.uid) === cardEl.dataset.uid);
+  if (!card) return;
+  e.preventDefault();
+
+  heldUid = card.uid;
+  heldCard = makeCardElement(card);
+  heldCard.classList.remove("placing");
+  heldCard.classList.add("held-card");
+  document.body.appendChild(heldCard);
+  placeHeld(e.clientX, e.clientY, HOLD_SCALE);
+  holdState = "dragging";
+  renderHand(lastView.you); // takes the card out of the hand; the rest close up
+
+  window.addEventListener("pointermove", dragMove);
+  window.addEventListener("pointerup", dragEnd, { once: true });
+});
+
+// The card follows the cursor
+function dragMove(e) {
+  placeHeld(e.clientX, e.clientY, HOLD_SCALE);
+}
+
+// 2. Let go
+function dragEnd(e) {
+  window.removeEventListener("pointermove", dragMove);
+  if (holdState !== "dragging") return;
+
+  const cardBottom = e.clientY + (heldCard.offsetHeight * HOLD_SCALE) / 2;
+  const handTop = $("hand").getBoundingClientRect().top;
+  if (handTop - cardBottom <= PLAY_DISTANCE) return endHold(); // not far enough: back to the hand
+
+  // Remember where it was let go, on screen and on your board
+  const board = $("my-board").getBoundingClientRect();
+  const scale = BASE_SCALE * zoom; // how big the table is drawn right now
+  lastMomentHeld = {
+    screenX: e.clientX,
+    screenY: e.clientY,
+    boardX: (e.clientX - board.left) / scale,
+    boardY: (e.clientY - board.top) / scale,
+  };
+
+  // Glide to the middle of the screen, bigger, with Play and Cancel
+  holdState = "staged";
+  heldCard.classList.add("staged");
+  placeHeld(window.innerWidth / 2, window.innerHeight / 2, STAGE_SCALE);
+  $("stage-buttons").classList.remove("hidden");
+}
+
+// 3a. Cancel: the card goes back to your hand
+$("cancel-btn").addEventListener("click", () => endHold());
+
+// 3b. Play: place it on your board where you let go
+$("play-btn").addEventListener("click", async () => {
+  if (holdState !== "staged") return;
+  $("play-btn").disabled = true;
+  const played = await act("play", { uid: heldUid, x: lastMomentHeld.boardX, y: lastMomentHeld.boardY });
+  $("play-btn").disabled = false;
+  if (holdState !== "staged") return; // the server's update already arrived and tidied up
+  if (!played) return endHold();      // refused: back to the hand (the reason pops up)
+  // Played. Hide the floating card; render() finishes up (endHold) once the
+  // server's update arrives showing the card on the board, so it never
+  // flashes back into the hand in between.
+  heldCard.remove();
+  heldCard = null;
+  holdState = "played";
+  $("stage-buttons").classList.add("hidden");
+  if (!lastView.you.hand.some((c) => c.uid === heldUid)) endHold(); // update already arrived
+});
+
+// Clears the floating card and buttons, and shows the hand as the server has it.
+function endHold() {
+  window.removeEventListener("pointermove", dragMove);
+  heldCard?.remove();
+  heldCard = null;
+  holdState = null;
+  heldUid = null;
+  $("stage-buttons").classList.add("hidden");
+  if (lastView) renderHand(lastView.you);
+}
 
 // Shows a short message at the top of the screen for 2 seconds.
 let toastTimer; // timer that hides the message

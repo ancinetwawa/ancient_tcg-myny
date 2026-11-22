@@ -70,6 +70,7 @@ class Game {
       turn: config.startingTurn,     // this player's turn number (shown on End Turn button)
       deck,                          // cards left to draw; the LAST item is the top card
       hand: [],                      // cards in the player's hand, in order drawn
+      field: [],                     // cards played onto their board; each has x, y (board pixels, card centre)
       drawsThisTurn: 0,              // draws so far this turn (for maxDrawsPerTurn)
       connections: 0,                // open browser tabs for this player; 0 = offline
       lastSeen: Date.now(),          // when they last disconnected (to forget old players)
@@ -99,11 +100,12 @@ class Game {
 
   // ----------------------------------------------------------
   //  ACTIONS: everything a player can do.
-  //  playerId: who is acting. type: which action ("draw", "endTurn").
+  //  playerId: who is acting. type: which action ("draw", "endTurn", "play").
+  //  data: extra details some actions need (e.g. which card and where).
   //  Returns { ok: true } or { ok: false, error: "message shown to player" }.
   //  To add a new action, add another `if (type === "...")` block.
   // ----------------------------------------------------------
-  act(playerId, type) {
+  act(playerId, type, data = {}) {
     const player = this.players.get(playerId);
     if (!player) return { ok: false, error: "Unknown player" };
     const { config } = this.rules;
@@ -137,6 +139,26 @@ class Game {
       return { ok: true };
     }
 
+    // PLAY: player put a card from their hand onto their board.
+    // data.uid = which card; data.x, data.y = where its centre goes, in board pixels.
+    if (type === "play") {
+      const index = player.hand.findIndex((c) => c.uid === data.uid);
+      if (index === -1) return { ok: false, error: "That card isn't in your hand" };
+      const x = Number(data.x), y = Number(data.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return { ok: false, error: "Couldn't tell where to play that" };
+      const card = player.hand[index];
+      // Let rules/effects.js veto the play
+      if (this.hook("onBeforePlay", { player, card }) === "block") {
+        return { ok: false, error: "You can't play that card right now" };
+      }
+      player.hand.splice(index, 1);
+      card.x = Math.max(-5000, Math.min(5000, x)); // keep it within a sane distance of the board
+      card.y = Math.max(-5000, Math.min(5000, y));
+      player.field.push(card);
+      this.hook("onPlay", { player, card });
+      return { ok: true };
+    }
+
     return { ok: false, error: `Unknown action "${type}"` };
   }
 
@@ -164,6 +186,7 @@ class Game {
         turn: me.turn,
         deckCount: me.deck.length,
         hand: me.hand.map((card) => ({ ...card })), // copies of the full cards
+        field: me.field.map((card) => ({ ...card })), // cards you've played, with their x, y
       },
       // Everyone else, with hidden information left out. Listed in seat
       // order going clockwise from this player (join order, starting
@@ -176,6 +199,7 @@ class Game {
           turn: p.turn,
           deckCount: p.deck.length,
           handCount: p.hand.length,
+          field: p.field.map((card) => ({ ...card })), // played cards are face up, so everyone sees them
           online: p.connections > 0, // true if they have the game open right now
         })),
     };
