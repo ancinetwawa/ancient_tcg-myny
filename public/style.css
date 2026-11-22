@@ -87,7 +87,7 @@ html, body {
 /* Position of the deck on the table */
 .deck-area {
   position: absolute;
-  left: 25%;  /* horizontally centered */
+  left: 95%;  /* horizontally centered */
   top: 75%;   /* a bit above the middle */
   transform: translate(-50%, -50%);
 }
