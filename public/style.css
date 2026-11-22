@@ -172,8 +172,8 @@ html, body {
   --inner-shift: 0px;   /* nudges the inner outline right (negative = left) */
 
   position: absolute;
-  right: 24px;  /* distance from the right edge */
-  bottom: 24px; /* distance from the bottom edge */
+  right: 50px;  /* distance from the right edge */
+  bottom: 100px; /* distance from the bottom edge */
   font: inherit;
   font-size: 16px;
   font-weight: 600;
