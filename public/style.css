@@ -211,22 +211,32 @@ html, body {
   z-index: 2;
 }
 .my-hand .card {
-  pointer-events: auto;
-  overflow: visible; /* lets the invisible hover area below reach outside the card */
+  pointer-events: none; /* the card itself ignores the mouse; its hover area (below) does the work */
+  overflow: visible;    /* lets the invisible hover area reach outside the card */
 }
-/* Invisible hover area around each of your cards, so you don't have to be
-   exactly on a card, and reaching down past the bottom of the screen so the
-   gap under the cards counts too. It sits behind the cards, so when you're
-   right over a card, that card still wins. */
+/* Invisible hover area for each of your cards. It covers only the card's
+   own visible strip (the part not hidden under the next card) plus a margin
+   on each side, and reaches down past the bottom of the screen so the gap
+   under the cards counts too. Because it never covers a neighbour's strip
+   (beyond the margin), a highlighted card can't block the cards next to it.
+   client.js sets, on the hand:
+     --strip-cut    how much of each card is hidden under the next card
+     --side-rest    side margin normally (shrinks as the hand gets squeezed)
+     --side-hover   side margin while the hand is highlighted (shrinks too)
+   The base margins are HOVER_SIDE_REST / HOVER_SIDE_HIGHLIGHTED in client.js. */
 .my-hand .card::before {
   content: "";
   position: absolute;
-  inset: -10px -10px -300px -10px; /* top, right, bottom, left: how far it reaches past the card */
+  pointer-events: auto;
+  /* top, right, bottom, left */
+  inset: -10px calc(var(--strip-cut, 0px) - var(--side-rest, 10px)) -300px calc(-1 * var(--side-rest, 10px));
   z-index: -1;
 }
-/* While your hand is highlighted, the hover area grows so it's harder to slip off by accident */
+.my-hand .card:last-child { --strip-cut: 0px; } /* nothing covers the last card */
+/* While your hand is highlighted, the hover area reaches further up and out
+   so it's harder to slip off by accident */
 .my-hand:not(.dragging):hover .card::before {
-  inset: -75px -20px -300px -20px; /* top, right, bottom, left */
+  inset: -75px calc(var(--strip-cut, 0px) - var(--side-hover, 20px)) -300px calc(-1 * var(--side-hover, 20px));
 }
 /* Your hand has three looks:
    1. Looking at the board: curved, bottom 20% hidden (above).

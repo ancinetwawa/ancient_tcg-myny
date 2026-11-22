@@ -164,6 +164,8 @@ const FAN_CARD_GAP = -10;    // gap between cards when there's room (pixels); ne
 const FAN_MAX_TILT = 5;      // most tilt between neighbouring cards (degrees)
 const FAN_TOTAL_TILT = 36;   // most tilt across the whole hand, edge to edge (degrees)
 const FAN_CURVE = 900;       // radius of the curve: smaller = cards at the edges drop lower
+const HOVER_SIDE_REST = 10;         // side margin of each card's hover area (pixels)...
+const HOVER_SIDE_HIGHLIGHTED = 20;  // ...and while your hand is highlighted. Both shrink as the hand squeezes.
 
 function layoutFan(hand) {
   const cards = [...hand.children];
@@ -187,6 +189,14 @@ function layoutFan(hand) {
     // A tilted card's outer bottom corner dips below its bottom middle
     lowest = Math.max(lowest, drop + (cardW / 2) * Math.abs(Math.sin(rad)));
   });
+  // Hover areas: each card's covers only its visible strip, and the side
+  // margins shrink in proportion as cards get squeezed closer together.
+  const normalStep = cardW + FAN_CARD_GAP;             // distance between cards when there's room
+  const squeeze = n > 1 ? Math.min(1, step / normalStep) : 1; // 1 = normal, smaller = more squeezed
+  hand.style.setProperty("--strip-cut", `${Math.max(0, cardW - step)}px`);
+  hand.style.setProperty("--side-rest", `${HOVER_SIDE_REST * squeeze}px`);
+  hand.style.setProperty("--side-hover", `${HOVER_SIDE_HIGHLIGHTED * squeeze}px`);
+
   // New cards ("placing") jump straight to their spot instead of sliding out
   // from the centre; after that they slide normally when the hand changes.
   for (const card of cards) {
