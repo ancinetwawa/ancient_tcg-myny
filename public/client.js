@@ -79,6 +79,7 @@ function connect() {
     seenCardUids = new Set();
     $("hand").innerHTML = "";
     $("my-field").innerHTML = "";
+    $("my-board-field").innerHTML = "";
     endHold();
     $("card-preview")?.remove();
     previewUid = null;
@@ -130,10 +131,10 @@ function render(view) {
   $("deck").classList.toggle("empty", you.deckCount === 0);
 
   renderHand(you);
-  renderField($("my-field"), you.field, inPlay ? heldUid : null);
 
   // Other players' boards
   layoutTable(renderOtherBoards(others));
+  renderMyField(inPlay ? heldUid : null); // after layoutTable: it needs to know where your board starts
 
   // The card you're holding has left your hand (or board) some other way: drop it
   const heldFrom = inPlay ? you.field : you.hand;
@@ -258,6 +259,58 @@ function renderField(field, cards, skipUid = null) {
   }
   for (const gone of shown.values()) gone.remove();
 }
+
+// ============================================================
+//  YOUR PLAYED CARDS: two layers.
+//  Cards that sit where your hand is in the STARTING view (100% zoom,
+//  before any scrolling) go on a layer ABOVE your hand, so they can never
+//  get stuck under it. Every other card stays on your board, UNDER your
+//  hand: if you scroll one behind the hand, you can scroll it back out.
+// ============================================================
+const HAND_ZONE_HEIGHT = 160; // the hand's area: its full width and this many pixels up from the screen bottom
+
+// Where your board's top-left corner would be on screen in the starting
+// view (100% zoom, scrolled to your board), so cards can be checked there.
+function startingBoardCorner() {
+  const view = $("viewport");
+  const s = BASE_SCALE;                    // 100% zoom
+  const worldW = tableLayout.width * s, worldH = tableLayout.height * s;
+  const offX = worldW < view.clientWidth ? (view.clientWidth - worldW) / 2 : 0;   // table centred when it's smaller than the screen
+  const offY = worldH < view.clientHeight ? (view.clientHeight - worldH) / 2 : 0;
+  const clamp = (v, max) => Math.max(0, Math.min(v, Math.max(0, max)));
+  const scrollLeft = clamp(tableLayout.myLeft * s, worldW - view.clientWidth);
+  const scrollTop = clamp(tableLayout.myBottom * s - view.clientHeight, worldH - view.clientHeight);
+  const boardH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--board-h"));
+  return {
+    left: offX + tableLayout.myLeft * s - scrollLeft,
+    top: offY + (tableLayout.myBottom - boardH) * s - scrollTop,
+  };
+}
+
+// True if this played card would overlap your hand in the starting view.
+function overlapsHandAtStart(card, corner) {
+  const s = BASE_SCALE;
+  const css = getComputedStyle(document.documentElement);
+  const halfW = (parseFloat(css.getPropertyValue("--card-w")) * s) / 2;
+  const halfH = (parseFloat(css.getPropertyValue("--card-h")) * s) / 2;
+  const x = corner.left + card.x * s; // card centre on screen in the starting view
+  const y = corner.top + card.y * s;
+  const handHalfW = $("hand").offsetWidth / 2;
+  const middle = window.innerWidth / 2;
+  return x + halfW > middle - handHalfW && x - halfW < middle + handHalfW &&
+         y + halfH > window.innerHeight - HAND_ZONE_HEIGHT;
+}
+
+// Draws your played cards on the right layer. skipUid: a card you're holding.
+function renderMyField(skipUid = null) {
+  if (!lastView || !tableLayout) return;
+  const corner = startingBoardCorner();
+  const over = [], under = [];
+  for (const card of lastView.you.field) (overlapsHandAtStart(card, corner) ? over : under).push(card);
+  renderField($("my-field"), over, skipUid);        // above your hand
+  renderField($("my-board-field"), under, skipUid); // on your board, under your hand
+}
+window.addEventListener("resize", () => renderMyField(inPlay ? heldUid : null));
 
 // Builds one card element (used for cards in your hand).
 function makeCardElement(card) {
@@ -629,6 +682,7 @@ function pressUp(e) {
 
 $("hand").addEventListener("pointerdown", (e) => pressCard(e, lastView.you.hand, false));
 $("my-field").addEventListener("pointerdown", (e) => pressCard(e, lastView.you.field, true));
+$("my-board-field").addEventListener("pointerdown", (e) => pressCard(e, lastView.you.field, true));
 
 // Pick up: the card leaves your hand (or board), grows, and follows the cursor.
 // fromBoard: true when it's a card already in play (sets inPlay).
@@ -643,7 +697,7 @@ function pickUp(e, card, fromBoard) {
   holdState = "dragging";
   setDragging(true);
   renderHand(lastView.you);                                // takes the card out of the hand...
-  renderField($("my-field"), lastView.you.field, inPlay ? heldUid : null); // ...or off the board while held
+  renderMyField(inPlay ? heldUid : null);                  // ...or off the board while held
 
   window.addEventListener("pointermove", dragMove);
 }
@@ -714,7 +768,7 @@ async function moveInPlay() {
   const moved = await act("move", { uid, x, y });
   if (!moved && mine && from) {   // ...and goes back if the server refuses
     Object.assign(mine, from);
-    renderField($("my-field"), lastView.you.field);
+    renderMyField();
   }
 }
 
@@ -751,7 +805,7 @@ function endHold() {
   $("stage-buttons").classList.add("hidden");
   if (lastView) {
     renderHand(lastView.you);
-    renderField($("my-field"), lastView.you.field);
+    renderMyField();
   }
 }
 
