@@ -22,7 +22,6 @@ Hooks (functions the game runs):
 | `onBeforePlay(ctx)` | When you press Play, before it's played. Return `"block"` to stop it. |
 | `onPlay(ctx)` | When it's played onto the board. Its main effect goes here. |
 | `onDraw(ctx)` | When it's drawn into its owner's hand. |
-| `onMove(ctx)` | When it's moved on the board. |
 
 Effect functions (`player` is `1`, `2`, `3`, `4` or `"self"`, meaning the card's owner):
 
